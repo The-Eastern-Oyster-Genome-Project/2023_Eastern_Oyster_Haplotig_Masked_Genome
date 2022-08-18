@@ -1,0 +1,85 @@
+---
+title: "Haplotig_Masking"
+author: "Jon Puritz"
+date: "10/11/2021"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Initial Setup
+
+Clone Repo
+```{bash eval = FALSE, include=FALSE}
+git clone https://github.com/The-Eastern-Oyster-Genome-Project/2021_Genome_Submissions.git
+```
+
+Change into repo directory
+```{bash eval = FALSE, include=FALSE}
+cd 2021_Genome_Submissions
+cd Haplotig_Masking
+```
+
+Download original genome
+
+```{bash eval = FALSE, include=FALSE}
+wget https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/002/022/765/GCF_002022765.2_C_virginica-3.0/GCF_002022765.2_C_virginica-3.0_genomic.fna.gz
+mv GCF_002022765.2_C_virginica-3.0_genomic.fna.gz reference.fasta.gz
+gunzip reference.fasta.gz
+
+```
+
+```{bash}
+conda install seqkit
+conda install delly
+conda install dicey
+```
+
+
+```{bash eval = FALSE, include=FALSE}
+
+
+wget https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/002/022/765/GCF_002022765.2_C_virginica-3.0/GCF_002022765.2_C_virginica-3.0_genomic_gaps.txt.gz
+
+gunzip GCF_002022765.2_C_virginica-3.0_genomic_gaps.txt.gz
+
+mawk '{new=$2-1;print $1 "\t" new "\t" $3}' GCF_002022765.2_C_virginica-3.0_genomic_gaps.txt | mawk '!/#/' > gaps.bed
+
+samtools faidx reference.fasta
+mawk -v OFS='\t' {'print $1,$2'} reference.fasta.fai > genome.file
+mawk '{print $1 "\t" "0" "\t" $2-1}' genome.file > genome.bed
+bedtools subtract -b gaps.bed -a genome.bed > contigs.bed
+
+
+```
+
+##Download raw Illumina files used for genome assembly
+
+**Note, you must have [SRA-Toolkit](https://github.com/ncbi/sra-tools/wiki/02.-Installing-SRA-Toolkit) installed properly on your system for this to work.
+
+```{bash eval=FALSE, include=FALSE}
+fasterq-dump SRR6159074 -p -e 16
+mv SRR6159074_1.fastq GI_01.F.fq
+mv SRR6159074_2.fastq GI_01.R.fq
+gzip *.fq
+```
+## Masking
+
+### Create computing environment
+```{bash eval = FALSE, include=FALSE}
+conda create -n HMASK ddocent=2.6.0 picard=2.18.2 purge_haplotigs=1.1.1 minimap2=2.17 assembly-stats seqkit
+```
+
+```{bash}
+conda activate HMASK
+rm reference.fasta.fai
+./dDocent_ngs.sh dDocent.config
+
+cat namelist | parallel -j 8 "picard MarkDuplicates I={}-RG.bam O={}-RGmd.bam M={}_dup_metrics.txt OPTICAL_DUPLICATE_PIXEL_DISTANCE=2500 TAGGING_POLICY=OpticalOnly &> md.{}.log"
+samtools view -h -@32 -F 0x400 -F 0x100 GI_01-RGmd.bam | mawk '$5 <1' |samtools view -@32 - -SbT reference.fasta > GI_01.multmappers.bam
+samtools view -@32 -h -q10 -F 0x400 -F 0x100 GI_01-RGmd.bam | mawk '$6 !~/[8-9].[SH]/ && $6 !~ /[1-9][0-9].[SH]/' | samtools view -@32 - -SbT reference.fasta > GI_01-RG.F.bam
+samtools view -@32 -bF 0x400 -F 0x100 GI_01-RGmd.bam > GI_01-RGnd.bam
+
+```
