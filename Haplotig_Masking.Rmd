@@ -1,7 +1,7 @@
 ---
 title: "Haplotig_Masking"
 author: "Jon Puritz"
-date: "10/11/2021"
+date: "08/1/2022"
 output: github_document
 ---
 
@@ -36,7 +36,7 @@ gunzip GCF_002022765.2_C_virginica-3.0_genomic_gaps.txt.gz
 
 **Note, you must have [SRA-Toolkit](https://github.com/ncbi/sra-tools/wiki/02.-Installing-SRA-Toolkit) installed properly on your system for this to work.
 
-```{bash eval=FALSE, include=FALSE}
+```{bash eval=FALSE}
 fasterq-dump SRR6159074 -p -e 16
 mv SRR6159074_1.fastq GI_01.F.fq
 mv SRR6159074_2.fastq GI_01.R.fq
@@ -71,7 +71,7 @@ bedtools getfasta -fi reference.fasta -bed contigs.bed | sed 's/-/./g' | sed 's/
 
 ## Masking
 
-```{bash}
+```{bash eval=FALSE}
 conda activate HMASK
 rm reference.fasta.fai
 ./dDocent_ngs.sh dDocent.config
@@ -83,7 +83,7 @@ samtools view -@32 -bF 0x400 -F 0x100 GI_01-RGmd.bam > GI_01-RGnd.bam
 
 ```
 
-```{bash}
+```{bash eval=FALSE}
 source activate HMASK
 mawk -v OFS='\t' {'print $1,$2'} reference.fasta.fai > genome.file
 bedtools makewindows -g genome.file -w 10000 | mawk '!/NC_007175.2/' > 10kb.bed
@@ -100,7 +100,7 @@ cat <(echo -e "chrom \t start \t end \t Filtered" ) GI.10kb.fil.cov.bed > GI.10k
 
 
 ```{r}
-
+library("ggplot2")
 o.cov.df <- read.table("GI.10kb.fil.cov.txt", header=TRUE)
 
 #png(filename="FilteredCoverageCOM.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
@@ -116,7 +116,7 @@ ggplot(o.cov.df[which(o.cov.df$Filtered > 1 & o.cov.df$Filtered < 100 ),]) +
 
 
 
-```{bash}
+```{bash eval=FALSE}
 source activate purge_haps
 samtools faidx contigs.fasta
 minimap2 -t 64 -ax sr contigs.fasta GI_01.R1.fq.gz GI_01.R2.fq.gz --secondary=no | samtools sort -m 10G -o aligned.contigs.bam -T tmp.ali
@@ -139,15 +139,25 @@ samtools faidx manual.fasta
 
 ```
 
-```{bash}
+```{bash eval=FALSE}
 source activate purge_haps
 minimap2 -t 64 -ax sr manual.fasta GI_01.R1.fq.gz GI_01.R2.fq.gz --secondary=no | samtools sort -m 10G -o aligned.bam -T tmp.ali
+```
+
+```{bash eval=FALSE, include=TRUE}
+source activate purge_haps
 purge_haplotigs hist -b aligned.bam -g manual.fasta -t 64
 
 ```
 
+**This does not knit properly on my machine, so here is a the output**
+```{bash}
+cat tmp_purge_haplotigs/purge_haplotigs_hist.log
+```
+
 Output figure from `purge_haplotigs`
 ![purge_haplotigs histogram](./aligned.bam.histogram.png)
+
 
 
 ```{bash}
@@ -185,9 +195,14 @@ sed -i 's/NC_035782.1.0.2889749.2750000.2889749,s,/NC_035782.1.0.2889749.2750000
 ```
 
 
-```{bash}
+```{bash eval=FALSE}
 source activate purge_haps
 purge_haplotigs purge -a 70 -g manual.fasta -c coverage_stats.csv -t 48 -d -b aligned.bam -o curated_contigs
+```
+
+**This does not knit properly on my machine, so here is a the output**
+```{bash}
+cat ./tmp_purge_haplotigs/purge_haplotigs_purge.log
 ```
 
 #### Important note on reproducibility
@@ -205,14 +220,24 @@ mv curated_contigs.fasta.sorted curated_contigs.fasta
 
 
 
-```{bash}
+```{bash eval=FALSE}
 source activate purge_haps
 purge_haplotigs clip -p curated_contigs.fasta -h curated_contigs.haplotigs.fasta -t 48
+```
 
+**This does not knit properly on my machine, so here is a the output**
+```{bash}
+cat ./tmp_purge_haplotigs/purge_haplotigs_clip.log
+```
+
+```{bash}
+source activate purge_haps
 cat clip.haplotigs.fasta curated_contigs.artefacts.fasta | mawk '!/ATGTTTTCTCAAGGATTCAAGAATTTTCTGTTAAGAATTTTTCCCATTCGCGGGTTTATCC/' | mawk '!/NC_007175.2/' > total.haplotigs.fasta
 minimap2 -ax asm5 reference.fasta total.haplotigs.fasta -t 16 --secondary=no |  samtools sort -@ 16 -m 5G -o haplotigs.bam
 bedtools bamtobed -i haplotigs.bam | bedtools merge -i - | mawk '{print $1 "\t" $2 "\t" $3 "\t0\thaplotig"}' > haplotigs.bed
 bedtools maskfasta -fi reference.fasta -bed haplotigs.bed -fo reference.masked.fasta
+grep -A1 NC_007175.2 curated_contigs.artefacts.fasta > mt.dna.fasta
+cat mt.dna.fasta clip.fasta > primary.contigs.fasta
 ```
 
 
