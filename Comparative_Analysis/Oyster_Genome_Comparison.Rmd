@@ -1,0 +1,2568 @@
+---
+title: "Oyster_Genone_Comparative_Analysis"
+author: "Jon Puritz"
+date: "8/1/2022"
+output: github_document
+---
+
+
+## Initial Setup
+
+Clone Repo
+```{bash eval = FALSE, include=FALSE}
+git clone https://github.com/The-Eastern-Oyster-Genome-Project/2022_Eastern_Oyster_Haplotig_Masked_Genome.git
+```
+
+Change into repo directory
+```{bash eval = FALSE, include=FALSE}
+cd 2022_Eastern_Oyster_Haplotig_Masked_Genome
+mkdir Masked
+mkdir Original
+cd Original
+```
+
+Download original genome
+
+```{bash eval = FALSE, include=FALSE}
+wget https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/002/022/765/GCF_002022765.2_C_virginica-3.0/GCF_002022765.2_C_virginica-3.0_genomic.fna.gz
+gunzip GCF_002022765.2_C_virginica-3.0_genomic.fna.gz 
+
+sed 's/NC_035789.1/NC_035779.1/' GCF_002022765.2_C_virginica-3.0_genomic.fna | seqkit sort -N - -w0 | seqkit seq -u -w 0 | sed 's/NC_035779.1/NC_035789.1/' > reference.fasta
+cd ../Masked
+```
+
+Download the masked genome
+```{bash eval = FALSE, include=FALSE}
+wget https://github.com/The-Eastern-Oyster-Genome-Project/2021_Genome_Submissions/raw/main/Haplotig_Masking/Output/Masked_Genome/reference.masked.fasta
+mv reference.masked.fasta reference.fasta
+```
+
+## Run variant calling
+
+Run modified dDocent pipeline **but make sure to change nunber of processors to match your machine and your email address**
+```{bash eval = FALSE, include=FALSE}
+bash ../scripts/dDocent_ngs ../other_files/config
+```
+
+Wait for code to finsh (will take a few days)
+
+## Filter variant calls **Note** 40 is the number of processors
+```{bash eval = FALSE, include=FALSE}
+cd raw.vcf
+bash ../../../scripts/PVCF_filter.sh MASKED 40 
+```
+
+## Run and filter original 
+```{bash eval = FALSE, include=FALSE}
+cd ../Original
+bash ../scripts/dDocent_ngs ../other_files/config
+cd raw.vcf
+bash ../../../scripts/PVCF_filter.sh ORIG 40 
+
+```
+
+
+## Structural Variant Calling
+
+```{bash eval = FALSE, include=FALSE}
+
+cd Masked
+conda activate HMASK
+ls *-RGmd.bam | sed 's/-RGmd.bam//g'| parallel -j 40 "delly call -x repeats.bed -o {}.bcf -g reference.fasta {}-RGmd.bam"
+delly merge -o sites.bcf *.bcf
+ls *-RGmd.bam | sed 's/-RGmd.bam//g'| parallel "delly call -x repeats.bed -o {}.geno.bcf -g reference.fasta -v sites.bcf {}-RGmd.bam"
+bcftools merge --threads 40 -m id -O b -o merged.bcf *_*.geno.bcf
+
+bcftools view --threads 40 -S ../other_files/filter.set merged.bcf -o no.inbred.sv.bcf -O b
+bcftools index --threads 40 no.inbred.sv.bcf
+
+delly filter -f germline -o germline.sv.bcf no.inbred.sv.bcf
+
+bcftools view --threads 40 germline.sv.bcf -i 'FILTER == "PASS" & SVTYPE == "INV" ' | bcftools query -f '%CHROM\t%POS\t%END\t%ID\n' | mawk '{print $1 "\t" $2-1 "\t" $3-1 "\t" $4}' > delly.inversions.masked.bed
+
+bedtools merge -i delly.inversions.masked.bed > delly.merged.inversions.masked.bed
+
+bcftools view -f "PASS" -i 'F_MISSING==0'  germline.sv.bcf |bcftools +setGT -- -t q -n . -i 'FORMAT/FT="LowQual"'  | bcftools +fill-tags| bcftools view -i 'F_MISSING==0' |bcftools query -f '%CHROM\t%POS\t%END\t%ID\t%SVTYPE\n' | mawk '{print $1 "\t" $2-1 "\t" $3-1 "\t" $4 "\t" $5 "\t" $3 - $2}' > sv.full.nomissing.bed
+
+bcftools view -f "PASS" -i 'F_MISSING==0'  germline.sv.bcf | bcftools +setGT -- -t q -n . -i 'FORMAT/FT="LowQual"' | bcftools +fill-tags| bcftools view -i 'F_MISSING==0' | bcftools query -f '%ID\n' > filtered.sv.sites
+
+bcftools view --threads 40 -i "ID=@filtered.sv.sites" merged.bcf -O b -o filtered.sv.bcf
+
+bcftools view -f "PASS" -i 'SVTYPE == "DEL" || SVTYPE == "DUP" ' filtered.sv.bcf | bcftools query -f '%CHROM\t%POS\t%ID\t[%RDCN\t]\n' > masked.cnv.tab
+
+bcftools view -f "PASS" -i 'SVTYPE == "DEL" || SVTYPE == "DUP" ' filtered.sv.bcf | bcftools query -f '%CHROM\t%POS\t%END\t%ID\n' | mawk '{print $1 "\t" $2-1 "\t" $3-1 "\t" $4}' > delly.cnv.masked.bed
+
+
+
+cp delly.inversions.masked.bed delly.merged.inversions.masked.bed masked.cnv.tab delly.cnv.masked.bed sv.full.bed sv.full.nomissing.bed ../Population_Genomics
+
+
+
+mkdir SV_calls
+
+mv *.bcf ./SV_calls
+cd ..
+#
+#conda install dicey
+#dicey chop reference.fasta
+#bwa mem -t 16 reference.fasta read1.fq.gz read2.fq.gz | samtools sort -@ 8 -o srt.bam -
+#samtools index srt.bam
+#dicey mappability2 srt.bam 
+#gunzip map.fa.gz && bgzip map.fa && samtools faidx map.fa.gz 
+#
+#ls *-RGmd.bam | sed 's/-RGmd.bam//g'| parallel "delly call -x repeats.bed -o {}.cnv.bcf -m map.fa.gz -g reference.fasta -v sites.bcf {}-RGmd.bam"
+#
+#delly merge -e -p -o sites.cnv.bcf -m 1000 -n 100000 *.cnv.bcf
+#
+#ls *-RGmd.bam | sed 's/-RGmd.bam//g'| parallel -j 16 "delly cnv -u -v sites.cnv.bcf -o {}.cnv.geno.bcf -m map.fa.gz -g reference.fasta -l sites.bcf #{}-RGmd.bam"
+#bcftools merge -m id -O b -o merged.cnv.geno.bcf *.cnv.geno.bcf
+#delly classify -o filtered.cnv.bcf -f germline -q 30 -x 0.25 merged.cnv.geno.bcf
+
+
+
+```
+
+## Setup Analyses
+
+```{bash eval = FALSE, include=FALSE}
+mkdir Comp
+cd Comp
+ln -s ../Masked/raw.vcf/filtered/*.vcf.gz .
+ln -s ../Original/raw.vcf/filtered/*.vcf.gz .
+mkdir Output
+```
+
+### Setup R Environment, Colors, and plotting set
+```{r, message=FALSE, warning=FALSE}
+library("dplyr")
+library("ggplot2")
+library(R.utils)
+library(gghighlight)
+library(ggman)
+library(ggtext)
+library(patchwork)
+library(plotrix)
+library(plyr)
+library(qqman)
+library(qvalue)
+library(reshape2)
+library(tidyr)
+library(zoo)
+library(infer)
+options(dplyr.summarise.inform = FALSE)
+library(bigsnpr)
+library("wesanderson")
+library("directlabels")
+library(OutFLANK)
+library(adegenet)
+library(poppr)
+library(vcfR)
+```
+
+### Setup
+
+```{r}
+pops <- read.table("./other_files/population_coordinates.full.tab", header = TRUE)
+popind <- read.table("./other_files/popmap", header=TRUE)
+
+popmap <-join(pops,popind,type = "inner")
+popmap <- popmap[order(popmap$IND),]
+popmap$Type <- factor(popmap$Type, levels=c("Inbred","Selected","Wild"))
+
+popmap$POP <- factor(popmap$POP, levels=c("HI","SM","UMFS","NEH","NG", "HG","HC","CS","DEBY" ,"CLP","HC-VA","LOLA","CL","SL","OBOYS","LM"))
+
+popmap.ni <- droplevels(subset(popmap, POP != "NG" & POP !="HG" & POP != "LM"))
+
+p_noinbred <- c("#FF7F00","#FDBF6F","#fda56f","#871a1a","#E31A1c","#FB9A99","#8a584a" ,"#33A02C","#B2DF8A","#86a395","#1F78B4","#A6CEE3","#A6CEE3")
+
+```
+
+## Comparisons
+
+
+### SNPS
+```{bash eval = FALSE, include=FALSE}
+ls *.vcf.gz | parallel "paste <(echo {}) <(bcftools stats --threads 12 {} | grep ^SN | cut -f3- | grep SNPs | cut -f2 -d ":")" > Output/SNP.list.table
+```
+
+```{bash}
+column -t Output/SNP.list.table
+```
+
+
+```{bash eval = FALSE, include=FALSE}
+bcftools query -f '%CHROM\t%POS\n' SNP.MASKED.TRSdp5g75.nDNA.g1.maf01.FIL.vcf.gz | mawk '{print $1 "\t" $2-1 "\t" $2}' > MASKED.SNP.MAF01.bed
+bcftools query -f '%CHROM\t%POS\n' SNP.ORIG.TRSdp5g75.nDNA.g1.maf01.FIL.vcf.gz | mawk '{print $1 "\t" $2-1 "\t" $2}' > ORIGINAL.SNP.MAF01.bed
+```
+
+```{bash eval = FALSE, include=FALSE}
+bedtools intersect -b <(sort -k 1,1 -k2,2n ORIGINAL.SNP.MAF01.bed) -a <(sort -k 1,1 -k2,2n 10kb.bed) -c -sorted > ORIG.snps.maf01.per.10kb.bed
+bedtools intersect -b <(sort -k 1,1 -k2,2n  MASKED.SNP.MAF01.bed) -a <(sort -k 1,1 -k2,2n 10kb.bed) -c -sorted > MASKED.snps.maf01.per.10kb.bed
+```
+
+
+
+```{bash eval = FALSE, include=FALSE}
+vcftools --gzvcf SNP.MASKED.TRSdp5g75.nDNA.g1.maf01.FIL.vcf.gz --diff-site-discordance --gzdiff SNP.ORIG.TRSdp5g75.nDNA.g1.maf01.FIL.vcf.gz --out maf01.concordance
+
+bedtools subtract -a MASKED.SNP.MAF01.bed -b ORIGINAL.SNP.MAF01.bed > masked.only.SNP.MAF01.bed
+
+bedtools intersect -a masked.only.SNP.MAF01.bed -b new_diplotigs.bed > masked.only.new.SNPs.diplotigs.bed
+bedtools intersect -a ORIGINAL.SNP.MAF01.bed -b new_diplotigs.bed > ORIGINAL.SNP.new_diplotigs.bed 
+bedtools intersect -a MASKED.SNP.MAF01.bed -b new_diplotigs.bed > MASKED.SNP.new_diplotigs.bed 
+
+mawk '$3 == "B"' maf01.concordance.diff.sites | mawk '{print $1 "\t" $2 -1 "\t" $2 "\t" $7}' > MvO.concordance.bed
+
+
+cat <(head -1 maf01.concordance.diff.sites) <(mawk '$3 == "B"' maf01.concordance.diff.sites) > MvO.concordance
+
+```
+
+```{r}
+countLines("MASKED.SNP.new_diplotigs.bed")
+countLines("ORIGINAL.SNP.new_diplotigs.bed")
+countLines("masked.only.new.SNPs.diplotigs.bed")
+```
+
+```{r}
+mvo.con <- read.table("MvO.concordance", sep="\t", header=T)
+
+summary(mvo.con)
+```
+
+
+### Create New Diplotig Windows
+````{bash eval = FALSE, include=FALSE}
+cd Comp
+cut -f1,2 ../Masked/reference.fasta.fai > genome.file
+bedtools makewindows -g genome.file -w 10000 | mawk '!/NC_007175.2/' > 10kb.bed
+bedtools coverage -a 10kb.bed -b ../Original/filter.merged.bam -mean -sorted -g genome.file > 10kb.original.cov.bed
+bedtools coverage -a 10kb.bed -b ../Masked/filter.merged.bam -mean -sorted -g genome.file > 10kb.masked.cov.bed
+
+paste 10kb.original.cov.bed <(cut -f4 10kb.masked.cov.bed ) | mawk '$5 > 1.5 * $4' > new_diplotigs.bed
+bedtools merge -i new_diplotigs.bed > merged.diplotig.windows.bed
+
+```
+
+
+### PI
+```{bash eval = FALSE, include=FALSE}
+bcftools view --threads 40 -S ../other_files/no_inbred.pop SNP.MASKED.TRSdp5g75.nDNA.g1.maf01.FIL.vcf.gz | vcftools --vcf -  --window-pi 10000 --out masked.all.pi &
+bcftools view --threads 40 -S ../other_files/no_inbred.pop SNP.ORIG.TRSdp5g75.nDNA.g1.maf01.FIL.vcf.gz | vcftools --vcf -  --window-pi 10000 --out original.all.pi
+
+cat <(mawk '{print $0 "\tMASKED"}' masked.all.pi.windowed.pi) <(mawk '{if (NR>1)print $0 "\tORIGINAL"}' original.all.pi.windowed.pi) > total.all.pi
+sed -i '1 s/MASKED/GROUP/' total.all.pi
+
+
+bedtools intersect -a <(mawk '!/CHRO/' total.all.pi ) -b new_diplotigs.bed -wa > total.all.d.pi
+cat <(head -1 total.all.pi) total.all.d.pi > total.diplo.pi
+
+mawk '!/CH/' masked.all.pi.windowed.pi | mawk '{print $1 "\t" $2-1 "\t" $3-1 "\t" $4 "\t" $5}' > masked.pi.10kb.bed
+mawk '!/CH/' original.all.pi.windowed.pi | mawk '{print $1 "\t" $2-1 "\t" $3-1 "\t" $4 "\t" $5}' > original.pi.10kb.bed
+```
+
+```{r}
+pi.all.dataframe<-read.table("total.all.pi", sep="\t", header=T)
+summary(pi.all.dataframe)
+pi.all.dataframe$GROUP <- factor(pi.all.dataframe$GROUP, levels=c("MASKED", "ORIGINAL" ))
+```
+
+```{r}
+bd <-ggplot(pi.all.dataframe, aes(x=PI,y = reorder(GROUP, desc(GROUP))))+
+  geom_violin(aes(color=GROUP,fill= GROUP)) +
+  geom_boxplot(aes(fill=GROUP), width=0.1,outlier.shape = 23, outlier.color = "black")+
+  stat_summary(fun=mean, geom="point", shape=23, size=2)+
+  scale_fill_manual(values=c("#7d5577", "#0072B2"))+
+  scale_color_manual(values=c("#7d5577", "#0072B2"))+
+  ylab("Genome")+
+  theme_classic() 
+png(filename="MvO.all.PI.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
+bd
+dev.off()
+```
+
+```{r}
+pi.all.dataframe %>% t_test(formula = PI ~ GROUP, alternative = "two.sided",order = c("MASKED", "ORIGINAL"))
+
+pi.all.dataframe %>% t_test(formula = PI ~ GROUP, alternative = "greater", order = c("MASKED", "ORIGINAL"))
+
+group_by(pi.all.dataframe, GROUP) %>%
+  summarise(
+    count = n(),
+    mean = mean(PI, na.rm = TRUE),
+    sd = sd(PI, na.rm = TRUE),
+    se=std.error(PI, na.rm = TRUE) )
+
+```
+
+```{r}
+hd<-ggplot(pi.all.dataframe, aes(x=PI))+
+  geom_histogram(aes(fill=GROUP), alpha=0.75, binwidth = 0.000025, position="identity")+
+  geom_vline(data=mudp, aes(xintercept=grp.mean, color=GROUP),
+             linetype="dashed")+
+  scale_fill_manual(values=c("#7d5577", "#0072B2"))+
+  scale_color_manual(values=c("#7d5577", "#0072B2"))+
+  theme_classic() 
+```
+
+```{r}
+mvpi <- read.table("masked.all.pi.windowed.pi", header = TRUE)
+ovpi <- read.table("original.all.pi.windowed.pi", header = TRUE)
+
+mvpi <- mvpi %>% rename(MASK_PI= PI)
+ovpi <- ovpi %>% rename(ORIG_PI= PI)
+o.m.pi <- join(mvpi,ovpi, by =c("CHROM", "BIN_START"),type="full")
+
+
+o.m.pi$DIFF <- o.m.pi$ORIG_PI - o.m.pi$MASK_PI
+
+```
+
+
+```{r, message=FALSE, warning=FALSE}
+SNP<-c(1:(nrow(o.m.pi)))
+mydf<-data.frame(SNP,o.m.pi)
+mydf$CHR <- mydf$CHROM
+mydf %>% 
+  mutate(CHR = str_replace(CHR, "NC_035780.1", "1")) %>% 
+  mutate(CHR = str_replace(CHR, "NC_035781.1", "2")) %>% 
+  mutate(CHR = str_replace(CHR, "NC_035782.1", "3")) %>% 
+  mutate(CHR = str_replace(CHR, "NC_035783.1", "4")) %>% 
+  mutate(CHR = str_replace(CHR, "NC_035784.1", "5")) %>% 
+  mutate(CHR = str_replace(CHR, "NC_035785.1", "6")) %>% 
+  mutate(CHR = str_replace(CHR, "NC_035786.1", "7")) %>% 
+  mutate(CHR = str_replace(CHR, "NC_035787.1", "8")) %>%
+  mutate(CHR = str_replace(CHR, "NC_035788.1", "9")) %>% 
+  mutate(CHR = str_replace(CHR, "NC_035789.1", "10"))  -> mydf
+mydf$CHR <- as.numeric(mydf$CHR)  
+
+m2 <-ggman(mydf,chrom="CHR",bp="BIN_START",pvalue="MASK_PI",snp="SNP",logTransform=FALSE,sigLine=NA, relative.positions = TRUE)
+
+dfm <- m2[[1]]
+dfm$chrom_alt <- factor(dfm$chrom_alt, levels=c(0,1))
+
+dfmsplit <- split(dfm, dfm$chrom)
+xbreaks <- sapply(dfmsplit,function(x) {
+    midpoint <- length(x$index)/2
+    if(midpoint <1) midpoint <- 1
+    return(x$index[midpoint])
+})
+
+m2.total <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt)))+
+  geom_point(size=0.5, aes(alpha=0.33))+  
+  scale_x_continuous(breaks = xbreaks, labels = names(xbreaks),expand = c(0,0),limits = c(0,max(dfm$index)+10)) +
+  guides(colour = FALSE,alpha=FALSE) +
+  scale_y_continuous(expand = c(0,0),limits=c(0,max(dfm$marker+0.001,na.rm=TRUE)))+
+  labs(x = "Chromosome") +
+  ggtitle("Masked") +theme_classic()+
+  labs(y="&pi;") +theme(axis.title.y = element_markdown())+ 
+  scale_color_manual(values=c("#7d5577", "#52374e")) 
+
+m2 <-m2.total
+
+m3 <-ggman(mydf,chrom="CHR",bp="BIN_START",pvalue="ORIG_PI",snp="SNP",logTransform=FALSE,sigLine=NA, ymax=1, relative.positions = TRUE)
+
+dfm <- m3[[1]]
+dfm$chrom_alt <- factor(dfm$chrom_alt, levels=c(0,1))
+
+dfmsplit <- split(dfm, dfm$chrom)
+xbreaks <- sapply(dfmsplit,function(x) {
+    midpoint <- length(x$index)/2
+    if(midpoint <1) midpoint <- 1
+    return(x$index[midpoint])
+})
+
+m3.total <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt)))+
+  geom_point(size=0.5, aes(alpha=0.33))+  
+  scale_x_continuous(breaks = xbreaks, labels = names(xbreaks),expand = c(0,0),limits = c(0,max(dfm$index)+10)) +
+  guides(colour = FALSE,alpha=FALSE) +
+  scale_y_continuous(expand = c(0,0),limits=c(0,max(dfm$marker+0.001,na.rm=TRUE)))+
+  #scale_alpha_continuous(range=c(0.1,0.95))+
+  labs(x = "Chromosome") +
+  ggtitle("Original") +theme_classic()+
+  labs(y="&pi;") +theme(axis.title.y = element_markdown())+ 
+  scale_color_manual(values=c("#0072B2", "#005280"))
+
+m3 <-m3.total
+
+
+md4 <-ggman(mydf,chrom="CHR",bp="BIN_START",pvalue="DIFF",snp="SNP",logTransform=FALSE,sigLine=NA, relative.positions = TRUE)
+
+dfm <- md4[[1]]
+dfm$chrom_alt <- factor(dfm$chrom_alt, levels=c(0,1))
+
+dfmsplit <- split(dfm, dfm$chrom)
+xbreaks <- sapply(dfmsplit,function(x) {
+    midpoint <- length(x$index)/2
+    if(midpoint <1) midpoint <- 1
+    return(x$index[midpoint])
+})
+
+md4 <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt),size=(0.1+ abs(marker))^2))+
+  geom_point(alpha=0.85)+  
+  scale_size_continuous(range=c(0.01,1.5))+
+  scale_x_continuous(breaks = xbreaks, labels = names(xbreaks),expand = c(0,0),limits = c(0,max(dfm$index)+10)) +
+  guides(colour = FALSE,alpha=FALSE,size=FALSE) +
+  scale_y_continuous(expand = c(0,0),limits=c(-0.025,0.005))+
+  #scale_alpha_continuous(range=c(0.1,0.95))+
+  labs(x = "Chromosome") +
+  ggtitle("Original - Masked") +theme_classic()+
+  labs(y="Difference in &pi;") +theme(axis.title.y = element_markdown())+ 
+  scale_color_manual(values=c("#a59cb5", "#574f66"))
+
+
+
+png(filename="Output/MvO.all.pi.man.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
+(m3/m2/md4 | bd) +plot_layout(widths = c(4, 1))
+dev.off()
+```
+
+
+#### Nucleotide Divergence in Diplotig Regions
+```{r}
+pi.diplo.dataframe<-read.table("total.diplo.pi", sep="\t", header=T)
+summary(pi.diplo.dataframe)
+pi.diplo.dataframe$GROUP <- factor(pi.diplo.dataframe$GROUP, levels=c("MASKED", "ORIGINAL" ))
+```
+
+```{r}
+bd <-ggplot(pi.diplo.dataframe, aes(y=PI,x = reorder(GROUP, desc(GROUP))))+
+  geom_boxplot(aes(fill=GROUP), width=0.1, outlier.shape = 18)+
+  stat_summary(fun=mean, geom="point", shape=23, size=3)+
+  scale_fill_manual(values=c("#7d5577", "#0072B2"))+
+  scale_color_manual(values=c("#7d5577", "#0072B2"))+
+  #scale_y_discrete(limits = rev(levels(GROUP)))+
+  #scale_y_continuous(limit=c(0,1))+
+  xlab("Genome")+ guides(color = "none", fill="none")+ 
+  theme_classic() +
+  labs(y="&pi;") +theme(axis.title.y = element_markdown())
+```
+
+```{r}
+pi.diplo.dataframe %>% t_test(formula = PI ~ GROUP, alternative = "two.sided",order = c("MASKED", "ORIGINAL"))
+
+pi.diplo.dataframe %>% t_test(formula = PI ~ GROUP, alternative = "greater", order = c("MASKED", "ORIGINAL"))
+
+group_by(pi.diplo.dataframe, GROUP) %>%
+  summarise(
+    count = n(),
+    mean = mean(PI, na.rm = TRUE),
+    sd = sd(PI, na.rm = TRUE),
+    se=std.error(PI, na.rm = TRUE) )
+```
+
+
+```{r}
+mvpi.d <- pi.diplo.dataframe[which(pi.diplo.dataframe$GROUP == "MASKED" ),]
+ovpi.d <- pi.diplo.dataframe[which(pi.diplo.dataframe$GROUP == "ORIGINAL" ),]
+
+mvpi.d <- mvpi.d %>% rename(MASK_PI= PI)
+ovpi.d <- ovpi.d %>% rename(ORIG_PI= PI)
+o.m.pi.d <- join(mvpi.d,ovpi.d, by =c("CHROM", "BIN_START"),type="full")
+
+
+o.m.pi.d$DIFF <- o.m.pi.d$ORIG_PI - o.m.pi.d$MASK_PI
+```
+
+
+```{r, message=FALSE, warning=FALSE}
+SNP<-c(1:(nrow(o.m.pi.d)))
+mydf<-data.frame(SNP,o.m.pi.d)
+mydf$CHR <- mydf$CHROM
+mydf %>% 
+  mutate(CHR = str_replace(CHR, "NC_035780.1", "1")) %>% 
+  mutate(CHR = str_replace(CHR, "NC_035781.1", "2")) %>% 
+  mutate(CHR = str_replace(CHR, "NC_035782.1", "3")) %>% 
+  mutate(CHR = str_replace(CHR, "NC_035783.1", "4")) %>% 
+  mutate(CHR = str_replace(CHR, "NC_035784.1", "5")) %>% 
+  mutate(CHR = str_replace(CHR, "NC_035785.1", "6")) %>% 
+  mutate(CHR = str_replace(CHR, "NC_035786.1", "7")) %>% 
+  mutate(CHR = str_replace(CHR, "NC_035787.1", "8")) %>%
+  mutate(CHR = str_replace(CHR, "NC_035788.1", "9")) %>% 
+  mutate(CHR = str_replace(CHR, "NC_035789.1", "10"))  -> mydf
+mydf$CHR <- as.numeric(mydf$CHR)  
+
+m2 <-ggman(mydf,chrom="CHR",bp="BIN_START",pvalue="MASK_PI",snp="SNP",logTransform=FALSE,sigLine=NA, relative.positions = TRUE)
+
+dfm <- m2[[1]]
+dfm$chrom_alt <- factor(dfm$chrom_alt, levels=c(0,1))
+
+dfmsplit <- split(dfm, dfm$chrom)
+xbreaks <- sapply(dfmsplit,function(x) {
+    midpoint <- length(x$index)/2
+    if(midpoint <1) midpoint <- 1
+    return(x$index[midpoint])
+})
+
+m2.total <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt)))+
+  geom_point(size=0.5, aes(alpha=0.33))+  
+  scale_x_continuous(breaks = xbreaks, labels = names(xbreaks),expand = c(0,0),limits = c(0,max(dfm$index)+10)) +
+  guides(colour = FALSE,alpha=FALSE) +
+  scale_y_continuous(expand = c(0,0),limits=c(0,max(dfm$marker+0.001,na.rm=TRUE)))+
+  labs(x = "Chromosome") +
+  ggtitle("Masked") +theme_classic()+
+  labs(y="&pi;") +theme(axis.title.y = element_markdown())+ 
+  scale_color_manual(values=c("#7d5577", "#52374e")) 
+
+
+m2 <-m2.total
+
+
+
+m3 <-ggman(mydf,chrom="CHR",bp="BIN_START",pvalue="ORIG_PI",snp="SNP",logTransform=FALSE,sigLine=NA, ymax=1, relative.positions = TRUE)
+
+dfm <- m3[[1]]
+dfm$chrom_alt <- factor(dfm$chrom_alt, levels=c(0,1))
+
+dfmsplit <- split(dfm, dfm$chrom)
+xbreaks <- sapply(dfmsplit,function(x) {
+    midpoint <- length(x$index)/2
+    if(midpoint <1) midpoint <- 1
+    return(x$index[midpoint])
+})
+
+m3.total <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt)))+
+  geom_point(size=0.5, aes(alpha=0.33))+  
+  scale_x_continuous(breaks = xbreaks, labels = names(xbreaks),expand = c(0,0),limits = c(0,max(dfm$index)+10)) +
+  guides(colour = FALSE,alpha=FALSE) +
+  scale_y_continuous(expand = c(0,0),limits=c(0,0.23))+
+  #scale_alpha_continuous(range=c(0.1,0.95))+
+  labs(x = "Chromosome") +
+  ggtitle("Original") +theme_classic()+
+  labs(y="&pi;") +theme(axis.title.y = element_markdown())+ 
+  scale_color_manual(values=c("#0072B2", "#005280"))
+
+m3 <-m3.total
+
+
+md4 <-ggman(mydf,chrom="CHR",bp="BIN_START",pvalue="DIFF",snp="SNP",logTransform=FALSE,sigLine=NA, relative.positions = TRUE)
+
+dfm <- md4[[1]]
+dfm$chrom_alt <- factor(dfm$chrom_alt, levels=c(0,1))
+
+dfmsplit <- split(dfm, dfm$chrom)
+xbreaks <- sapply(dfmsplit,function(x) {
+    midpoint <- length(x$index)/2
+    if(midpoint <1) midpoint <- 1
+    return(x$index[midpoint])
+})
+
+md4 <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt),size=(0.1+ abs(marker))^2))+
+  geom_point(alpha=0.85)+  
+  scale_size_continuous(range=c(0.01,1.5))+
+  scale_x_continuous(breaks = xbreaks, labels = names(xbreaks),expand = c(0,0),limits = c(0,max(dfm$index)+10)) +
+  guides(colour = FALSE,alpha=FALSE,size=FALSE) +
+  scale_y_continuous(expand = c(0,0),limits=c(-0.025,0.005))+
+  #scale_alpha_continuous(range=c(0.1,0.95))+
+  labs(x = "Chromosome") +
+  ggtitle("Original - Masked") +theme_classic()+
+  labs(y="Difference in &pi;") +theme(axis.title.y = element_markdown())+ 
+  scale_color_manual(values=c("#a59cb5", "#574f66"))
+
+
+
+png(filename="Output/MvO.diplo.pi.man.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
+(m3/m2/md4 | bd) +plot_layout(widths = c(4, 1))
+dev.off()
+```
+
+
+
+### Heterozygosity Masked vs. Original
+```{bash eval = FALSE, include=FALSE}
+cd Comp
+bcftools index -f --threads 40 SNP.MASKED.TRSdp5g75.nDNA.g1.maf01.max2alleles.FIL.vcf.gz
+bcftools index -f --threads 40 SNP.ORIG.TRSdp5g75.nDNA.g1.maf01.max2alleles.FIL.vcf.gz
+
+INDS=$(paste -d, <(seq -s, 0 35) <(seq -s, 39 44) <(seq -s, 50 61) <(seq -s, 66 89 ))
+popStats -y GT --file <( bcftools view --threads 40 SNP.ORIG.TRSdp5g75.nDNA.g1.maf01.FIL.vcf.gz) -t $INDS > ORIG.maf01.popstats
+popStats -y GT --file <( bcftools view --threads 40 SNP.MASKED.TRSdp5g75.nDNA.g1.maf01.FIL.vcf.gz) -t $INDS > MASKED.maf01.popstats
+
+cut -f1,2,4,5 ORIG.maf01.popstats | mawk '{print $1 "\t" $2-1 "\t" $2 "\t" $3 "\t" $4}' > ORIG.het.01.bed
+cut -f1,2,4,5 MASKED.maf01.popstats | mawk '{print $1 "\t" $2-1 "\t" $2 "\t" $3 "\t" $4}' > MASK.het.01.bed
+
+bedtools intersect -b ORIG.het.01.bed -a 10kb.bed -wa -wb | bedtools merge -d -1 -c 7,8 -o mean > ORIG.het.01.per10kb.bed
+bedtools intersect -b MASK.het.01.bed  -a 10kb.bed -wa -wb | bedtools merge -d -1 -c 7,8 -o mean > MASK.het.01.per10kb.bed
+
+cat <(echo -e "CHROM\tBIN_START\tBIN_END\tEXP_HET\tOBS_HET\tGROUP") <(mawk '{print $0 "\tMASKED"}' MASK.het.01.per10kb.bed) > MASK.het.01.per10kb.text
+
+cat <(echo -e "CHROM\tBIN_START\tBIN_END\tEXP_HET\tOBS_HET\tGROUP") <(mawk '{print $0 "\tORIGINAL"}' ORIG.het.01.per10kb.bed) > ORIG.het.01.per10kb.text
+
+
+cat <(echo -e "CHROM\tBIN_START\tBIN_END\tEXP_HET\tOBS_HET\tGROUP") <(mawk '{print $0 "\tMASKED"}' MASK.het.01.per10kb.bed) <(mawk '{print $0 "\tORIGINAL"}' ORIG.het.01.per10kb.bed) > total.all.per10kb.het
+
+```
+
+
+```{r}
+het.all.dataframe <- read.table("total.all.per10kb.het", sep="\t", header=T)
+summary(het.all.dataframe)
+het.all.dataframe$GROUP <- factor(het.all.dataframe$GROUP, levels=c("MASKED", "ORIGINAL" ))
+```
+
+```{r}
+b2 <-ggplot(het.all.dataframe, aes(y=OBS_HET,x = reorder(GROUP, desc(GROUP))))+
+  geom_violin(aes(color=GROUP),alpha=0.75) +
+  #stat_summary(fun=mean, geom="point", shape=23, size=4)+
+  #geom_dotplot(binaxis='y', stackdir='center', dotsize=0.005)+
+  geom_boxplot(aes(fill=GROUP), width=0.25, outlier.shape = NA)+
+  stat_summary(fun=mean, geom="point", shape=23, size=3)+
+  scale_fill_manual(values=c("#7d5577", "#0072B2"))+
+  scale_color_manual(values=c("#7d5577", "#0072B2"))+
+  #scale_y_discrete(limits = rev(levels(GROUP)))+
+  scale_y_continuous(limit=c(0,1))+
+  xlab("Genome")+ guides(color = "none", fill="none")+ 
+  theme_classic() +
+  labs(y="Heterozygosity") +theme(axis.title.y = element_markdown())
+
+```
+
+
+
+```{r}
+
+mvhet <- read.table("MASK.het.01.per10kb.text", header = TRUE)
+ovhet <- read.table("ORIG.het.01.per10kb.text", header = TRUE)
+
+
+mvhet <- mvhet %>% rename(MASK_HET= OBS_HET)
+ovhet <- ovhet %>% rename(ORIG_HET= OBS_HET)
+o.m.het <- join(mvhet,ovhet, by =c("CHROM", "BIN_START"),type="full")
+
+o.m.het$DIFF <- o.m.het$ORIG_HET - o.m.het$MASK_HET
+
+het.all.dataframe %>% t_test(formula = OBS_HET ~ GROUP, alternative = "two.sided",order = c("MASKED", "ORIGINAL"))
+
+het.all.dataframe %>% t_test(formula = OBS_HET ~ GROUP, alternative = "greater", order = c("MASKED", "ORIGINAL"))
+
+group_by(het.all.dataframe, GROUP) %>%
+  summarise(
+    count = n(),
+    mean = mean(OBS_HET, na.rm = TRUE),
+    sd = sd(OBS_HET, na.rm = TRUE),
+    se=std.error(OBS_HET, na.rm = TRUE) )
+```
+
+
+```{r, message=FALSE, warning=FALSE}
+SNP<-c(1:(nrow(o.m.het)))
+mydf<-data.frame(SNP,o.m.het)
+mydf$CHR <- mydf$CHROM
+mydf %>% 
+  mutate(CHR = str_replace(CHR, "NC_035780.1", "1")) %>% 
+  mutate(CHR = str_replace(CHR, "NC_035781.1", "2")) %>% 
+  mutate(CHR = str_replace(CHR, "NC_035782.1", "3")) %>% 
+  mutate(CHR = str_replace(CHR, "NC_035783.1", "4")) %>% 
+  mutate(CHR = str_replace(CHR, "NC_035784.1", "5")) %>% 
+  mutate(CHR = str_replace(CHR, "NC_035785.1", "6")) %>% 
+  mutate(CHR = str_replace(CHR, "NC_035786.1", "7")) %>% 
+  mutate(CHR = str_replace(CHR, "NC_035787.1", "8")) %>%
+  mutate(CHR = str_replace(CHR, "NC_035788.1", "9")) %>% 
+  mutate(CHR = str_replace(CHR, "NC_035789.1", "10"))  -> mydf
+mydf$CHR <- as.numeric(mydf$CHR)  
+
+m2 <-ggman(mydf,chrom="CHR",bp="BIN_START",pvalue="MASK_HET",snp="SNP",logTransform=FALSE,sigLine=NA, ymax=1, relative.positions = TRUE)
+
+dfm <- m2[[1]]
+dfm$chrom_alt <- factor(dfm$chrom_alt, levels=c(0,1))
+
+dfmsplit <- split(dfm, dfm$chrom)
+xbreaks <- sapply(dfmsplit,function(x) {
+    midpoint <- length(x$index)/2
+    if(midpoint <1) midpoint <- 1
+    return(x$index[midpoint])
+})
+
+m2.total <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt)))+
+  geom_point(size=0.5, aes(alpha=0.33))+  
+  scale_x_continuous(breaks = xbreaks, labels = names(xbreaks),expand = c(0,0),limits = c(0,max(dfm$index)+10)) +
+  guides(colour = FALSE,alpha=FALSE) +
+  scale_y_continuous(expand = c(0,0),limits=c(min(dfm$marker),1))+
+  labs(x = "Chromosome") +
+  ggtitle("Masked") +theme_classic()+
+  labs(y="Observed Heterozygosity") +theme(axis.title.y = element_markdown())+ 
+  scale_color_manual(values=c("#7d5577", "#52374e")) 
+
+mydf.sig <- mydf[mydf$MASK_HET>quantile(mydf$MASK_HET, 0.999,na.rm=TRUE) ,]
+mydf.sig$snp <- mydf.sig$SNP
+dfm.sub <- merge(dfm,mydf.sig, by = "snp")
+
+
+m2 <-m2.total
+
+
+m3 <-ggman(mydf,chrom="CHR",bp="BIN_START",pvalue="ORIG_HET",snp="SNP",logTransform=FALSE,sigLine=NA, ymax=1, relative.positions = TRUE)
+
+dfm <- m3[[1]]
+dfm$chrom_alt <- factor(dfm$chrom_alt, levels=c(0,1))
+
+dfmsplit <- split(dfm, dfm$chrom)
+xbreaks <- sapply(dfmsplit,function(x) {
+    midpoint <- length(x$index)/2
+    if(midpoint <1) midpoint <- 1
+    return(x$index[midpoint])
+})
+
+m3.total <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt)))+
+  geom_point(size=0.5, aes(alpha=0.33))+  
+  scale_x_continuous(breaks = xbreaks, labels = names(xbreaks),expand = c(0,0),limits = c(0,max(dfm$index)+10)) +
+  guides(colour = FALSE,alpha=FALSE) +
+  scale_y_continuous(expand = c(0,0),limits=c(min(dfm$marker),1))+
+  #scale_alpha_continuous(range=c(0.1,0.95))+
+  labs(x = "Chromosome") +
+  ggtitle("Original") +theme_classic()+
+  labs(y="Observed Heterozygosity") +theme(axis.title.y = element_markdown())+ 
+  scale_color_manual(values=c("#0072B2", "#005280"))
+
+mydf1.sig <- mydf[mydf$ORIG_HET>quantile(mydf$ORIG_HET, 0.999, na.rm = TRUE) ,]
+mydf1.sig$snp <- mydf1.sig$SNP
+dfm.sub <- merge(dfm,mydf1.sig, by = "snp")
+#m3 <-m3.total+geom_point(data=dfm.sub,shape = 17,alpha=1,size=1.5)
+m3 <-m3.total
+
+
+md4 <-ggman(mydf,chrom="CHR",bp="BIN_START",pvalue="DIFF",snp="SNP",logTransform=FALSE,sigLine=NA, relative.positions = TRUE)
+
+dfm <- md4[[1]]
+dfm$chrom_alt <- factor(dfm$chrom_alt, levels=c(0,1))
+
+dfmsplit <- split(dfm, dfm$chrom)
+xbreaks <- sapply(dfmsplit,function(x) {
+    midpoint <- length(x$index)/2
+    if(midpoint <1) midpoint <- 1
+    return(x$index[midpoint])
+})
+
+md4 <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt),size=(0.1+ abs(marker))^2))+
+  geom_point(alpha=0.85)+  
+  scale_size_continuous(range=c(0.01,1.5))+
+  scale_x_continuous(breaks = xbreaks, labels = names(xbreaks),expand = c(0,0),limits = c(0,max(dfm$index)+10)) +
+  guides(colour = FALSE,alpha=FALSE,size=FALSE) +
+  scale_y_continuous(expand = c(0,0),limits=c(-0.75,0.65))+
+  #scale_alpha_continuous(range=c(0.1,0.95))+
+  labs(x = "Chromosome") +
+  ggtitle("Original - Masked") +theme_classic()+
+  labs(y="Difference in Heterozygosity") +theme(axis.title.y = element_markdown())+ 
+  scale_color_manual(values=c("#a59cb5", "#574f66"))
+
+
+
+png(filename="Output/MvO.all.Hetero.man.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
+(m3/m2/md4 | b2) +plot_layout(widths = c(4, 1))
+dev.off()
+
+
+```
+
+
+### Heterozygosity Masked vs. Original in Diplotigs
+```{bash eval = FALSE, include=FALSE}
+
+bedtools intersect -a <(mawk '!/CHRO/' total.all.per10kb.het ) -b new_diplotigs.bed -wa > total.all.d.het
+cat <(head -1 total.all.per10kb.het) total.all.d.het > total.diplo.hets
+```
+
+
+```{r}
+het.all.diplo.dataframe <- read.table("total.diplo.hets", sep="\t", header=T)
+summary(het.all.diplo.dataframe)
+het.all.diplo.dataframe$GROUP <- factor(het.all.diplo.dataframe$GROUP, levels=c("MASKED", "ORIGINAL" ))
+```
+
+```{r}
+b2 <-ggplot(het.all.diplo.dataframe, aes(y=OBS_HET,x = reorder(GROUP, desc(GROUP))))+
+  geom_violin(aes(color=GROUP),alpha=0.75) +
+  #stat_summary(fun=mean, geom="point", shape=23, size=4)+
+  #geom_dotplot(binaxis='y', stackdir='center', dotsize=0.005)+
+  geom_boxplot(aes(fill=GROUP), width=0.25, outlier.shape = NA)+
+  stat_summary(fun=mean, geom="point", shape=23, size=3)+
+  scale_fill_manual(values=c("#7d5577", "#0072B2"))+
+  scale_color_manual(values=c("#7d5577", "#0072B2"))+
+  #scale_y_discrete(limits = rev(levels(GROUP)))+
+  scale_y_continuous(limit=c(0,1))+
+  xlab("Genome")+ guides(color = "none", fill="none")+ 
+  theme_classic() +
+  labs(y="Heterozygosity") +theme(axis.title.y = element_markdown())
+
+```
+
+
+
+```{r}
+
+mvhet.d <- het.all.diplo.dataframe[which(het.all.diplo.dataframe$GROUP == "MASKED" ),]
+ovhet.d <- het.all.diplo.dataframe[which(het.all.diplo.dataframe$GROUP == "ORIGINAL" ),]
+mvhet.d <- mvhet.d %>% rename(MASK_HET= OBS_HET)
+ovhet.d <- ovhet.d %>% rename(ORIG_HET= OBS_HET)
+
+o.m.het.d <- join(mvhet.d,ovhet.d, by =c("CHROM", "BIN_START"),type="full")
+
+
+o.m.het.d$DIFF <- o.m.het.d$ORIG_HET - o.m.het.d$MASK_HET
+
+het.all.diplo.dataframe %>% t_test(formula = OBS_HET ~ GROUP, alternative = "two.sided",order = c("MASKED", "ORIGINAL"))
+
+het.all.diplo.dataframe %>% t_test(formula = OBS_HET ~ GROUP, alternative = "greater", order = c("MASKED", "ORIGINAL"))
+
+group_by(het.all.diplo.dataframe, GROUP) %>%
+  summarise(
+    count = n(),
+    mean = mean(OBS_HET, na.rm = TRUE),
+    sd = sd(OBS_HET, na.rm = TRUE),
+    se=std.error(OBS_HET, na.rm = TRUE) )
+
+```
+
+
+```{r, message=FALSE, warning=FALSE}
+SNP<-c(1:(nrow(o.m.het.d)))
+mydf<-data.frame(SNP,o.m.het.d)
+mydf$CHR <- mydf$CHROM
+mydf %>% 
+  mutate(CHR = str_replace(CHR, "NC_035780.1", "1")) %>% 
+  mutate(CHR = str_replace(CHR, "NC_035781.1", "2")) %>% 
+  mutate(CHR = str_replace(CHR, "NC_035782.1", "3")) %>% 
+  mutate(CHR = str_replace(CHR, "NC_035783.1", "4")) %>% 
+  mutate(CHR = str_replace(CHR, "NC_035784.1", "5")) %>% 
+  mutate(CHR = str_replace(CHR, "NC_035785.1", "6")) %>% 
+  mutate(CHR = str_replace(CHR, "NC_035786.1", "7")) %>% 
+  mutate(CHR = str_replace(CHR, "NC_035787.1", "8")) %>%
+  mutate(CHR = str_replace(CHR, "NC_035788.1", "9")) %>% 
+  mutate(CHR = str_replace(CHR, "NC_035789.1", "10"))  -> mydf
+mydf$CHR <- as.numeric(mydf$CHR)  
+
+m2 <-ggman(mydf,chrom="CHR",bp="BIN_START",pvalue="MASK_HET",snp="SNP",logTransform=FALSE,sigLine=NA, ymax=1, relative.positions = TRUE)
+
+dfm <- m2[[1]]
+dfm$chrom_alt <- factor(dfm$chrom_alt, levels=c(0,1))
+
+dfmsplit <- split(dfm, dfm$chrom)
+xbreaks <- sapply(dfmsplit,function(x) {
+    midpoint <- length(x$index)/2
+    if(midpoint <1) midpoint <- 1
+    return(x$index[midpoint])
+})
+
+m2.total <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt)))+
+  geom_point(size=0.5, aes(alpha=0.33))+  
+  scale_x_continuous(breaks = xbreaks, labels = names(xbreaks),expand = c(0,0),limits = c(0,max(dfm$index)+10)) +
+  guides(colour = FALSE,alpha=FALSE) +
+  scale_y_continuous(expand = c(0,0),limits=c(min(dfm$marker),1))+
+  labs(x = "Chromosome") +
+  ggtitle("Masked") +theme_classic()+
+  labs(y="Observed Heterozygosity") +theme(axis.title.y = element_markdown())+ 
+  scale_color_manual(values=c("#7d5577", "#52374e")) 
+
+mydf.sig <- mydf[mydf$MASK_HET>quantile(mydf$MASK_HET, 0.999,na.rm=TRUE) ,]
+mydf.sig$snp <- mydf.sig$SNP
+dfm.sub <- merge(dfm,mydf.sig, by = "snp")
+
+
+#m2 <-m2.total+geom_point(data=dfm.sub,shape = 17,alpha=1,size=1.5)
+m2 <-m2.total
+
+
+
+m3 <-ggman(mydf,chrom="CHR",bp="BIN_START",pvalue="ORIG_HET",snp="SNP",logTransform=FALSE,sigLine=NA, ymax=1, relative.positions = TRUE)
+
+dfm <- m3[[1]]
+dfm$chrom_alt <- factor(dfm$chrom_alt, levels=c(0,1))
+
+dfmsplit <- split(dfm, dfm$chrom)
+xbreaks <- sapply(dfmsplit,function(x) {
+    midpoint <- length(x$index)/2
+    if(midpoint <1) midpoint <- 1
+    return(x$index[midpoint])
+})
+
+m3.total <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt)))+
+  geom_point(size=0.5, aes(alpha=0.33))+  
+  scale_x_continuous(breaks = xbreaks, labels = names(xbreaks),expand = c(0,0),limits = c(0,max(dfm$index)+10)) +
+  guides(colour = FALSE,alpha=FALSE) +
+  scale_y_continuous(expand = c(0,0),limits=c(min(dfm$marker),1))+
+  #scale_alpha_continuous(range=c(0.1,0.95))+
+  labs(x = "Chromosome") +
+  ggtitle("Original") +theme_classic()+
+  labs(y="Observed Heterozygosity") +theme(axis.title.y = element_markdown())+ 
+  scale_color_manual(values=c("#0072B2", "#005280"))
+
+mydf1.sig <- mydf[mydf$ORIG_HET>quantile(mydf$ORIG_HET, 0.999, na.rm = TRUE) ,]
+mydf1.sig$snp <- mydf1.sig$SNP
+dfm.sub <- merge(dfm,mydf1.sig, by = "snp")
+#m3 <-m3.total+geom_point(data=dfm.sub,shape = 17,alpha=1,size=1.5)
+m3 <-m3.total
+
+
+md4 <-ggman(mydf,chrom="CHR",bp="BIN_START",pvalue="DIFF",snp="SNP",logTransform=FALSE,sigLine=NA, relative.positions = TRUE)
+
+dfm <- md4[[1]]
+dfm$chrom_alt <- factor(dfm$chrom_alt, levels=c(0,1))
+
+dfmsplit <- split(dfm, dfm$chrom)
+xbreaks <- sapply(dfmsplit,function(x) {
+    midpoint <- length(x$index)/2
+    if(midpoint <1) midpoint <- 1
+    return(x$index[midpoint])
+})
+
+md4 <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt),size=(0.1+ abs(marker))^2))+
+  geom_point(alpha=0.85)+  
+  scale_size_continuous(range=c(0.01,1.5))+
+  scale_x_continuous(breaks = xbreaks, labels = names(xbreaks),expand = c(0,0),limits = c(0,max(dfm$index)+10)) +
+  guides(colour = FALSE,alpha=FALSE,size=FALSE) +
+  scale_y_continuous(expand = c(0,0),limits=c(-0.42,0.51))+
+  #scale_alpha_continuous(range=c(0.1,0.95))+
+  labs(x = "Chromosome") +
+  ggtitle("Original - Masked") +theme_classic()+
+  labs(y="Difference in Heterozygosity") +theme(axis.title.y = element_markdown())+ 
+  scale_color_manual(values=c("#a59cb5", "#574f66"))
+
+
+
+png(filename="MvO.all.Hetero.diplo.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
+(m3/m2/md4 | b2) +plot_layout(widths = c(4, 1))
+dev.off()
+
+
+```
+
+
+
+### Calculate FST
+
+#### OutFlank
+```{bash eval = FALSE, include=FALSE}
+
+bcftools view  --threads 40 -S ../other_files/filter.set SNP.ORIG.TRSdp5g75.nDNA.g1.maf05.max2alleles.FIL.vcf.gz |  bcftools +fill-tags| bcftools view -i 'F_MISSING==0 & MAF > 0.05'  -O z -o SNP.ORIGINAL.noinbred.TRSdp5g75.nDNA.g1.maf05.max2alleles.nomissing.FIL.vcf.gz
+
+bcftools view  --threads 40 -S ../other_files/filter.set SNP.MASKED.TRSdp5g75.nDNA.g1.maf05.max2alleles.FIL.vcf.gz |  bcftools +fill-tags| bcftools view -i 'F_MISSING==0 & MAF > 0.05'  -O z -o SNP.MASKED.noinbred.TRSdp5g75.nDNA.g1.maf05.max2alleles.nomissing.FIL.vcf.gz
+
+plink2 --vcf SNP.ORIG.noinbred.TRSdp5g75.nDNA.g1.maf05.max2alleles.nomissing.FIL.vcf.gz --make-bed --out Original.NoInbred --allow-extra-chr
+
+plink2 --vcf SNP.MASKED.noinbred.TRSdp5g75.nDNA.g1.maf05.max2alleles.nomissing.FIL.vcf.gz --make-bed --out Masked.NoInbred --allow-extra-chr
+
+
+```
+
+```{r}
+rds.m.ni <- snp_readBed("Masked.NoInbred.bed", backingfile = tempfile())
+rds.o.ni <- snp_readBed("Original.NoInbred.bed", backingfile = tempfile())
+# Atlantic Wild Subset
+rds.o.wae <- snp_readBed("ORIGINAL.wildAE.bed", backingfile = tempfile())
+rds.m.wae <- snp_readBed("MASKED.wildAE.bed", backingfile = tempfile())
+```
+
+```{r}
+masked_all.m.ni<- snp_attach(rds.m.ni)
+G.m.ni <- masked_all.m.ni$genotypes
+CHR.m.ni <- masked_all.m.ni$map$chromosome
+POS.m.ni <- masked_all.m.ni$map$physical.pos
+NCORES <- nb_cores()
+
+masked_all.o.ni <- snp_attach(rds.o.ni)
+G.o.ni <- masked_all.o.ni$genotypes
+CHR.o.ni <- masked_all.o.ni$map$chromosome
+POS.o.ni <- masked_all.o.ni$map$physical.pos
+
+# Atlantic Wild Subset
+masked_all.m.wae <- snp_attach(rds.m.wae)
+G.m.wae <- masked_all.m.wae$genotypes
+CHR.m.wae <- masked_all.m.wae$map$chromosome
+POS.m.wae <- masked_all.m.wae$map$physical.pos
+
+original_wildAE <- snp_attach(rds.o.wae)
+G.o.wae <- original_wildAE$genotypes
+CHR.o.wae <- original_wildAE$map$chromosome
+POS.o.wae <- original_wildAE$map$physical.pos
+```
+
+```{r}
+svd.m.ni <- snp_autoSVD(G.m.ni, as.integer(factor(CHR.m.ni)), POS.m.ni, ncores = NCORES,min.mac = 7, size=10)
+svd.o.ni <- snp_autoSVD(G.o.ni, as.integer(factor(CHR.o.ni)), POS.o.ni, ncores = NCORES, min.mac = 7, size=10)
+
+# Atlantic Wild Subset
+svd.m.wildae <- snp_autoSVD(G.m.wae, as.integer(factor(CHR.m.wae)), POS.m.wae, ncores = NCORES, min.mac =4,size=10)
+svd.o.wae <- snp_autoSVD(G.o.wae, as.integer(factor(CHR.o.wae)), POS.o.wae, ncores = NCORES, min.mac =4,size=10)
+```
+
+```{r}
+write(paste(CHR.m.ni[attr(svd.m.ni, "subset")],
+            POS.m.ni[attr(svd.m.ni, "subset")], sep='\t'),
+      "NoInbredLociLocationsAfterThinning.maskedPCs.txt")
+write(paste(CHR.o.ni[attr(svd.o.ni, "subset")],POS.o.ni[attr(svd.o.ni, "subset")], sep='\t'), "Original.NoInbredLociLocationsAfterThinning.maskedPCs.txt")
+
+write(paste(CHR.m.wae[attr(svd.m.wildae, "subset")],
+            POS.m.wae[attr(svd.m.wildae, "subset")], sep='\t'),
+      "WildAELociLocationsAfterThinningmaskedPCs.txt")
+write(paste(CHR.o.wae[attr(svd.o.wae, "subset")],
+            POS.o.wae[attr(svd.o.wae, "subset")], sep='\t'),
+      "WildAELociLocationsAfterThinningOriginalPCs.txt")
+```
+
+```{bash eval = FALSE, include=FALSE}
+
+cut -f1 NoInbredLociLocationsAfterThinning.maskedPCs.txt| uniq | parallel "grep {} NoInbredLociLocationsAfterThinning.maskedPCs.txt | shuf  2>/dev/null | shuf 2>/dev/null | shuf 2>/dev/null| head -5000" >> random.50k.masked.snps
+
+cut -f1 Original.NoInbredLociLocationsAfterThinning.maskedPCs.txt | grep -v NA| uniq | parallel "grep {} Original.NoInbredLociLocationsAfterThinning.maskedPCs.txt | shuf  2>/dev/null | shuf 2>/dev/null | shuf 2>/dev/null| head -5000" >> random.50k.original.snps
+
+cut -f1 WildAELociLocationsAfterThinningmaskedPCs.txt| uniq | parallel "grep {} WildAELociLocationsAfterThinningmaskedPCs.txt | shuf  2>/dev/null | shuf 2>/dev/null | shuf 2>/dev/null| head -5000" >> random.50k.wildAE.snps
+
+cut -f1 WildAELociLocationsAfterThinningOriginalPCs.txt| uniq | parallel "grep {} WildAELociLocationsAfterThinningOriginalPCs.txt | shuf  2>/dev/null | shuf 2>/dev/null | shuf 2>/dev/null| head -5000" >> random.50k.wildAE.o.snps
+
+bcftools index --threads 40 SNP.MASKED.noinbred.TRSdp5g75.nDNA.g1.maf05.max2alleles.nomissing.FIL.vcf.gz
+bcftools index --threads 40 SNP.ORIG.noinbred.TRSdp5g75.nDNA.g1.maf05.max2alleles.nomissing.FIL.vcf.gz
+
+bcftools index --threads 40 SNP.MASKED.wildAE.g1.maf05.max2alleles.FIL.vcf.gz
+bcftools index --threads 40 SNP.ORIGINAL.wildAE.g1.maf05.max2alleles.FIL.vcf.gz
+
+bcftools view --threads 40 -R <(sort random.50k.masked.snps) SNP.MASKED.noinbred.TRSdp5g75.nDNA.g1.maf05.max2alleles.nomissing.FIL.vcf.gz -O z -o Random.50k.SNP.MASKED.noinbred.g1.maf05.max2alleles.FIL.vcf.gz
+bcftools view --threads 40 -R random.50k.original.snps SNP.ORIG.noinbred.TRSdp5g75.nDNA.g1.maf05.max2alleles.nomissing.FIL.vcf.gz -O z -o Random.50k.SNP.ORIGINAL.noinbred.g1.maf05.max2alleles.FIL.vcf.gz
+
+bcftools view --threads 40 -R <(sort random.50k.wildAE.snps) SNP.MASKED.wildAE.g1.maf05.max2alleles.FIL.vcf.gz -O z -o Random.50k.SNP.MASKED.wildAE.g1.maf05.max2alleles.FIL.vcf.gz
+bcftools view --threads 40 -R <(sort random.50k.wildAE.o.snps) SNP.ORIGINAL.wildAE.g1.maf05.max2alleles.FIL.vcf.gz -O z -o Random.50k.SNP.ORIGINAL.wildAE.g1.maf05.max2alleles.FIL.vcf.gz
+
+
+plink2 --vcf Random.50k.SNP.MASKED.noinbred.g1.maf05.max2alleles.FIL.vcf.gz --make-bed --out Random.50k.masked --allow-extra-chr
+plink2 --vcf Random.50k.SNP.ORIGINAL.noinbred.g1.maf05.max2alleles.FIL.vcf.gz --make-bed --out Random.50k.original --allow-extra-chr
+
+plink2 --vcf Random.50k.SNP.MASKED.wildAE.g1.maf05.max2alleles.FIL.vcf.gz --make-bed --out Random.50k.Masked.WildAE --allow-extra-chr
+plink2 --vcf Random.50k.SNP.ORIGINAL.wildAE.g1.maf05.max2alleles.FIL.vcf.gz --make-bed --out Random.50k.Original.WildAE --allow-extra-chr
+
+
+```
+
+```{r eval = FALSE, include=FALSE}
+
+rds.comp.m.random <- snp_readBed("Random.50k.masked.bed", backingfile = tempfile())
+rds.comp.o.random <- snp_readBed("Random.50k.original.bed", backingfile = tempfile())
+rds.wildAE.m.random <- snp_readBed("Random.50k.Masked.WildAE.bed", backingfile = tempfile())
+rds.wildAE.o.random <- snp_readBed("Random.50k.Original.WildAE.bed", backingfile = tempfile())
+
+masked_comp.m.r <- snp_attach(rds.comp.m.random)
+G.comp.m.r <- masked_comp.m.r$genotypes
+CHR.comp.m.r <- masked_comp.m.r$map$chromosome
+POS.comp.m.r <- masked_comp.m.r$map$physical.pos
+
+masked_comp.o.r <- snp_attach(rds.comp.o.random)
+G.comp.o.r <- masked_comp.o.r$genotypes
+CHR.comp.o.r <- masked_comp.o.r$map$chromosome
+POS.comp.o.r <- masked_comp.o.r$map$physical.pos
+
+masked_wildAE.m.r <- snp_attach(rds.wildAE.m.random)
+G.wildAE.m.r <- masked_wildAE.m.r$genotypes
+CHR.wildAE.m.r <- masked_wildAE.m.r$map$chromosome
+POS.wildAE.m.r <- masked_wildAE.m.r$map$physical.pos
+
+masked_wildAE.o.r <- snp_attach(rds.wildAE.o.random)
+G.wildAE.o.r <- masked_wildAE.o.r$genotypes
+CHR.wildAE.o.r <- masked_wildAE.o.r$map$chromosome
+POS.wildAE.o.r <- masked_wildAE.o.r$map$physical.pos
+
+my_fst.comp.m <- MakeDiploidFSTMat(G.m.ni[], locusNames = paste0(CHR.m.ni,"_", POS.m.ni), popNames = popmap.ni$POP)
+
+my_fst.comp.m.r <- MakeDiploidFSTMat(G.comp.m.r[], locusNames = paste0(CHR.comp.m.r,"_", POS.comp.m.r), popNames = popmap.ni$POP)
+
+my_fst.comp.o <- MakeDiploidFSTMat(G.o.ni[], locusNames = paste0(CHR.o.ni,"_", POS.o.ni), popNames = popmap.ni$POP)
+
+my_fst.comp.o.r <- MakeDiploidFSTMat(G.comp.o.r[], locusNames = paste0(CHR.comp.o.r,"_", POS.comp.o.r), popNames = popmap.ni$POP)
+
+
+my_fst.wildae.m <- MakeDiploidFSTMat(G.m.wae[], locusNames = paste0(CHR.m.wae,"_", POS.m.wae), popNames = popmap.wildAE$POP)
+
+my_fst.wildae.m.r <- MakeDiploidFSTMat(G.wildAE.m.r[], locusNames = paste0(CHR.wildAE.m.r,"_", POS.wildAE.m.r), popNames = popmap.wildAE$POP)
+
+
+my_fst.wildae.o <- MakeDiploidFSTMat(G.o.wae[], locusNames = paste0(CHR.o.wae,"_", POS.o.wae), popNames = popmap.wildAE$POP)
+
+my_fst.wildae.o.r <- MakeDiploidFSTMat(G.wildAE.o.r[], locusNames = paste0(CHR.wildAE.o.r,"_", POS.wildAE.o.r), popNames = popmap.wildAE$POP)
+
+```
+
+
+```{r}
+plot(my_fst.comp.m$He, my_fst.comp.m$FST)
+plot(my_fst.comp.o$He, my_fst.comp.o$FST)
+```
+
+
+```{r}
+out_trim.m <- OutFLANK(my_fst.comp.m.r, NumberOfSamples=13, qthreshold = 0.05, Hmin = 0.1)
+
+OutFLANKResultsPlotter(out_trim.m, withOutliers = TRUE,
+                       NoCorr = TRUE, Hmin = 0.1, binwidth = 0.001, Zoom =
+                         FALSE, RightZoomFraction = 0.05, titletext = NULL)
+
+hist(out_trim.m$results$pvaluesRightTail)
+
+
+
+out_trim.o <- OutFLANK(my_fst.comp.o.r, NumberOfSamples=13, qthreshold = 0.05, Hmin = 0.1)
+
+OutFLANKResultsPlotter(out_trim.o, withOutliers = TRUE,
+                       NoCorr = TRUE, Hmin = 0.1, binwidth = 0.001, Zoom =
+                         FALSE, RightZoomFraction = 0.05, titletext = NULL)
+
+hist(out_trim.o$results$pvaluesRightTail)
+
+out_trim.m.wae <- OutFLANK(my_fst.wildae.m.r, NumberOfSamples=6, qthreshold = 0.05, Hmin = 0.1)
+str(out_trim.m.wae)
+head(out_trim.m.wae$results)
+
+OutFLANKResultsPlotter(out_trim.m.wae, withOutliers = TRUE,
+                       NoCorr = TRUE, Hmin = 0.2, binwidth = 0.001, Zoom =
+                         FALSE, RightZoomFraction = 0.05, titletext = NULL)
+
+hist(out_trim.m.w$results$pvaluesRightTail)
+
+out_trim.o.wae <- OutFLANK(my_fst.wildae.o.r, NumberOfSamples=6, qthreshold = 0.05, Hmin = 0.1)
+str(out_trim.o.wae)
+head(out_trim.o.wae$results)
+
+OutFLANKResultsPlotter(out_trim.o.wae, withOutliers = TRUE,
+                       NoCorr = TRUE, Hmin = 0.2, binwidth = 0.001, Zoom =
+                         FALSE, RightZoomFraction = 0.05, titletext = NULL)
+
+hist(out_trim.o.wae$results$pvaluesRightTail)
+
+```
+
+```{r}
+
+P1.m <- pOutlierFinderChiSqNoCorr(my_fst.comp.m, Fstbar = out_trim.m$FSTNoCorrbar, 
+                                   dfInferred = out_trim.m$dfInferred, qthreshold = 0.0005, Hmin=0.1)
+
+P1.m <- P1.m[order(as.numeric(rownames(P1.m))),,drop=FALSE]                  
+hist(P1.m$pvaluesRightTail)
+
+
+
+P1.o <- pOutlierFinderChiSqNoCorr(my_fst.comp.o, Fstbar = out_trim.o$FSTNoCorrbar, 
+                                   dfInferred = out_trim.o$dfInferred, qthreshold = 0.0005, Hmin=0.1)
+
+P1.o <- P1.o[order(as.numeric(rownames(P1.o))),,drop=FALSE]                  
+hist(P1.o$pvaluesRightTail)
+
+P1.m.wae <- pOutlierFinderChiSqNoCorr(my_fst.wildae.m, Fstbar = out_trim.m.wae$FSTNoCorrbar, 
+                                   dfInferred = out_trim.m.wae$dfInferred, qthreshold = 0.0005, Hmin=0.1)
+
+P1.m.wae <- P1.m.wae[order(as.numeric(rownames(P1.m.wae))),,drop=FALSE]                  
+hist(P1.m.wae$pvaluesRightTail)
+
+P1.o.wae <- pOutlierFinderChiSqNoCorr(my_fst.wildae.o, Fstbar = out_trim.o.wae$FSTNoCorrbar, dfInferred = out_trim.o.wae$dfInferred, qthreshold = 0.0005, Hmin=0.1)
+
+P1.o.wae <- P1.o.wae[order(as.numeric(rownames(P1.o.wae))),,drop=FALSE]                  
+hist(P1.o.wae$pvaluesRightTail)
+```
+
+
+
+
+
+
+```{r}
+m.plot.df<- setNames(data.frame(matrix(ncol = 7, nrow = length(my_fst.comp.m$LocusName))), c("CHR", "CHRR", "BP", "SNP", "P", "Q", "Outlier"))
+m.plot.df$CHR <-as.integer(as.factor(CHR.m.ni))
+m.plot.df$CHRR <- CHR.m.ni
+m.plot.df$SNP <-P1.m$LocusName
+m.plot.df$BP <- POS.m.ni
+m.plot.df$P <- P1.m$pvalues
+m.plot.df$Q <- P1.m$qvalues
+m.plot.df$F <- P1.m$FST
+m.plot.df$Outlier <- P1.m$OutlierFlag
+m.plot.df <- m.plot.df[which(m.plot.df$Outlier == TRUE | m.plot.df$Outlier == FALSE),]
+
+o.plot.df<- setNames(data.frame(matrix(ncol = 7, nrow = length(my_fst.comp.o$LocusName))), c("CHR", "CHRR", "BP", "SNP", "P", "Q", "Outlier"))
+o.plot.df$CHR <-as.integer(as.factor(CHR.o.ni))
+o.plot.df$CHRR <- CHR.o.ni
+o.plot.df$SNP <-P1.o$LocusName
+o.plot.df$BP <- POS.o.ni
+o.plot.df$P <- P1.o$pvalues
+o.plot.df$Q <- P1.o$qvalues
+o.plot.df$F <- P1.o$FST
+o.plot.df$Outlier <- P1.o$OutlierFlag
+o.plot.df <- o.plot.df[which(o.plot.df$Outlier == TRUE | o.plot.df$Outlier == FALSE),]
+
+
+m.wae.plot.df<- setNames(data.frame(matrix(ncol = 7, nrow = length(my_fst.wildae.m$LocusName))), c("CHR", "CHRR", "BP", "SNP", "P", "Q", "Outlier"))
+m.wae.plot.df$CHR <-as.integer(as.factor(CHR.m.wae))
+m.wae.plot.df$CHRR <- CHR.m.wae
+m.wae.plot.df$SNP <-P1.m.wae$LocusName
+m.wae.plot.df$BP <- POS.m.wae
+m.wae.plot.df$P <- P1.m.wae$pvalues
+m.wae.plot.df$Q <- P1.m.wae$qvalues
+m.wae.plot.df$F <- P1.m.wae$FST
+m.wae.plot.df$Outlier <- P1.m.wae$OutlierFlag
+m.wae.plot.df <- m.wae.plot.df[which(m.wae.plot.df$Outlier == TRUE | m.wae.plot.df$Outlier == FALSE),]
+
+o.wae.plot.df<- setNames(data.frame(matrix(ncol = 7, nrow = length(my_fst.wildae.o$LocusName))), c("CHR", "CHRR", "BP", "SNP", "P", "Q", "Outlier"))
+o.wae.plot.df$CHR <-as.integer(as.factor(CHR.o.wae))
+o.wae.plot.df$CHRR <- CHR.o.wae
+o.wae.plot.df$SNP <-P1.o.wae$LocusName
+o.wae.plot.df$BP <- POS.o.wae
+o.wae.plot.df$P <- P1.o.wae$pvalues
+o.wae.plot.df$Q <- P1.o.wae$qvalues
+o.wae.plot.df$F <- P1.o.wae$FST
+o.wae.plot.df$Outlier <- P1.o.wae$OutlierFlag
+o.wae.plot.df <- o.wae.plot.df[which(o.wae.plot.df$Outlier == TRUE | o.wae.plot.df$Outlier == FALSE),]
+```
+
+
+```{r}
+withr::with_options(c(scipen = 10), write(paste(m.plot.df$CHRR,m.plot.df$BP-1,m.plot.df$BP,m.plot.df$F,m.plot.df$Outlier, sep='\t'),
+      "Masked_NoInbred_FST_Outflank.bed"))
+
+withr::with_options(c(scipen = 10),write(paste(o.plot.df$CHRR,o.plot.df$BP-1,o.plot.df$BP,o.plot.df$F,o.plot.df$Outlier, sep='\t'),
+      "Original_NoInbred_FST_Outflank.bed"))
+
+
+withr::with_options(c(scipen = 10),write(paste(m.wae.plot.df$CHRR,m.wae.plot.df$BP-1,m.wae.plot.df$BP,m.wae.plot.df$F,m.wae.plot.df$Outlier, sep='\t'),
+      "Masked_WildAE_FST_Outflank.bed"))
+
+withr::with_options(c(scipen = 10),write(paste(o.wae.plot.df$CHRR,o.wae.plot.df$BP-1,o.wae.plot.df$BP,o.wae.plot.df$F,o.wae.plot.df$Outlier, sep='\t'),
+      "Original_WildAE_FST_Outflank.bed"))
+
+```
+
+```{bash eval = FALSE, include=FALSE}
+cd Comp
+bedtools intersect -b <(sort -k 1,1 -k2,2n Masked_NoInbred_FST_Outflank.bed) -a <(sort -k 1,1 -k2,2n 10kb.bed) -wa -wb -sorted  |bedtools merge -d -1 -c 7,8 -o mean,distinct | mawk '{ if ($0 ~ /TRUE/) {print $1 "\t" $2 "\t" $3 "\t" $4 "\tTRUE"} else {print $0}}' > masked.OF_fst.10kb.bed
+
+
+bedtools intersect -b <(sort -k 1,1 -k2,2n Original_NoInbred_FST_Outflank.bed) -a <(sort -k 1,1 -k2,2n 10kb.bed) -wa -wb -sorted  |bedtools merge -d -1 -c 7,8 -o mean,distinct | mawk '{ if ($0 ~ /TRUE/) {print $1 "\t" $2 "\t" $3 "\t" $4 "\tTRUE"} else {print $0}}' > original.OF_fst.10kb.bed
+
+bedtools intersect -b <(sort -k 1,1 -k2,2n Masked_WildAE_FST_Outflank.bed) -a <(sort -k 1,1 -k2,2n 10kb.bed) -wa -wb -sorted  |bedtools merge -d -1 -c 7,8 -o mean,distinct | mawk '{ if ($0 ~ /TRUE/) {print $1 "\t" $2 "\t" $3 "\t" $4 "\tTRUE"} else {print $0}}' > masked.wildae.OF_fst.10kb.bed
+
+bedtools intersect -b <(sort -k 1,1 -k2,2n Original_WildAE_FST_Outflank.bed) -a <(sort -k 1,1 -k2,2n 10kb.bed) -wa -wb -sorted  |bedtools merge -d -1 -c 7,8 -o mean,distinct | mawk '{ if ($0 ~ /TRUE/) {print $1 "\t" $2 "\t" $3 "\t" $4 "\tTRUE"} else {print $0}}' > original.wildae.OF_fst.10kb.bed
+
+
+cat <(echo -e "CHROM\tBIN_START\tBIN_END\tWEIGHTED_FST\tOUTLIER") masked.OF_fst.10kb.bed > masked.OF_fst.10kb.txt
+cat <(echo -e "CHROM\tBIN_START\tBIN_END\tWEIGHTED_FST\tOUTLIER") original.OF_fst.10kb.bed > original.OF_fst.10kb.bed.txt
+cat <(echo -e "CHROM\tBIN_START\tBIN_END\tWEIGHTED_FST\tOUTLIER") masked.wildae.OF_fst.10kb.bed > masked.wildae.OF_fst.10kb.bed.txt
+cat <(echo -e "CHROM\tBIN_START\tBIN_END\tWEIGHTED_FST\tOUTLIER") original.wildae.OF_fst.10kb.bed > original.wildae.OF_fst.10kb.bed.txt
+
+cat <(mawk '{print $0 "\tMASKED"}' masked.OF_fst.10kb.txt) <(mawk '{if (NR>1)print $0 "\tORIGINAL"}' original.OF_fst.10kb.bed.txt) > total.all.OF.fsts
+sed -i '1 s/MASKED/GROUP/' total.all.OF.fsts
+
+cat <(mawk '{print $0 "\tMASKED"}' masked.wildae.OF_fst.10kb.bed.txt) <(mawk '{if (NR>1)print $0 "\tORIGINAL"}' original.wildae.OF_fst.10kb.bed.txt) > total.wildae.OF.fsts
+
+
+
+
+```
+
+
+```{bash}
+cd Comp
+grep TRUE Original_NoInbred_FST_Outflank.bed > Orig.outlier.bed
+echo "Number of Original Outliers"
+cat Orig.outlier.bed | wc -l
+echo "Outliers from orginal genome present in masked genome"
+bedtools intersect -a Orig.outlier.bed -b Masked_NoInbred_FST_Outflank.bed -wb | wc -l
+echo "Outliers from orginal genome not present in masked genome"
+bedtools subtract -a Orig.outlier.bed -b Masked_NoInbred_FST_Outflank.bed | wc -l
+echo "Outliers from orginal genome present in masked haplotigs"
+bedtools intersect -a Orig.outlier.bed -b ../../other_files/haplotigs.bed | wc -l
+echo "Outliers from orginal genome that are no longer significant in Masked"
+bedtools intersect -a Orig.outlier.bed -b Masked_NoInbred_FST_Outflank.bed -wb | grep FALSE | wc -l
+
+grep TRUE Original_WildAE_FST_Outflank.bed > original.wildae.outliers.bed
+echo "Number of Original Wild AE Outliers"
+cat original.wildae.outliers.bed | wc -l
+echo "Wild AE Outliers from orginal genome present in masked genome"
+bedtools intersect -a original.wildae.outliers.bed -b Masked_WildAE_FST_Outflank.bed -wb | wc -l
+echo "Wild AE Outliers from orginal genome not present in masked genome"
+bedtools intersect -a original.wildae.outliers.bed -b Masked_WildAE_FST_Outflank.bed | wc -l
+echo "Wild AE Outliers from orginal genome present in masked haplotigs"
+bedtools intersect -a original.wildae.outliers.bed -b ../../other_files/haplotigs.bed | wc -l
+echo "Wild AE Outliers from orginal genome that are no longer significant in Masked"
+bedtools intersect -a original.wildae.outliers.bed -b Masked_WildAE_FST_Outflank.bed -wb | grep FALSE | wc -l
+```
+### Compare Fst
+
+```{r}
+fst.all.dataframe<-read.table("total.all.OF.fsts", sep="\t", header=T)
+summary(fst.all.dataframe)
+fst.all.dataframe$GROUP <- factor(fst.all.dataframe$GROUP, levels=c("MASKED", "ORIGINAL" ))
+```
+
+```{r}
+b2 <-ggplot(fst.all.dataframe, aes(y=WEIGHTED_FST,x = reorder(GROUP, desc(GROUP))))+
+  geom_violin(aes(color=GROUP,fill= GROUP)) +
+  geom_boxplot(aes(fill=GROUP), width=0.25, outlier.shape = NA)+
+  stat_summary(fun=mean, geom="point", shape=23, size=3)+
+  scale_fill_manual(values=c("#7d5577", "#0072B2"))+
+  scale_color_manual(values=c("#7d5577", "#0072B2"))+
+  xlab("Genome")+ guides(color = "none", fill="none")+
+  theme_classic() + 
+  labs(y="*F<sub>ST</sub>*") +theme(axis.title.y = element_markdown())
+
+```
+
+```{r}
+mfst <- read.table("masked.OF_fst.10kb.txt", header = TRUE)
+ofst <- read.table("original.OF_fst.10kb.bed.txt", header = TRUE)
+mfst <- mfst %>% rename(MASK_FST= WEIGHTED_FST)
+mfst <- mfst %>% rename(MASK_OUTLIER= OUTLIER)
+ofst <- ofst %>% rename(ORIG_FST= WEIGHTED_FST)
+ofst <- ofst %>% rename(ORIG_OUTLIER= OUTLIER)
+o.m.fst <- join(mfst,ofst, by =c("CHROM", "BIN_START"),type="full")
+#o.m.fst[is.na(o.m.fst)] <- 0
+#o.m.diplo[ORIG_FST %in% "NA"] <- 0
+o.m.fst$DIFF <- o.m.fst$ORIG_FST - o.m.fst$MASK_FST
+
+
+fst.all.dataframe %>% t_test(formula = WEIGHTED_FST ~ GROUP, alternative = "two-sided", order = c("MASKED", "ORIGINAL"))
+
+fst.all.dataframe %>% t_test(formula = WEIGHTED_FST ~ GROUP, alternative = "less", order = c("MASKED", "ORIGINAL"))
+
+group_by(fst.all.dataframe, GROUP) %>%
+  summarise(
+    count = n(),
+    mean = mean(WEIGHTED_FST, na.rm = TRUE),
+    sd = sd(WEIGHTED_FST, na.rm = TRUE),
+    se=std.error(WEIGHTED_FST, na.rm = TRUE) )
+```
+
+```{r message=FALSE, warning=FALSE}
+SNP<-c(1:(nrow(o.m.fst)))
+mydf<-data.frame(SNP,o.m.fst)
+mydf$CHR <- mydf$CHROM
+mydf %>% 
+  mutate(CHR = str_replace(CHR, "NC_035780.1", "1")) %>% 
+  mutate(CHR = str_replace(CHR, "NC_035781.1", "2")) %>% 
+  mutate(CHR = str_replace(CHR, "NC_035782.1", "3")) %>% 
+  mutate(CHR = str_replace(CHR, "NC_035783.1", "4")) %>% 
+  mutate(CHR = str_replace(CHR, "NC_035784.1", "5")) %>% 
+  mutate(CHR = str_replace(CHR, "NC_035785.1", "6")) %>% 
+  mutate(CHR = str_replace(CHR, "NC_035786.1", "7")) %>% 
+  mutate(CHR = str_replace(CHR, "NC_035787.1", "8")) %>%
+  mutate(CHR = str_replace(CHR, "NC_035788.1", "9")) %>% 
+  mutate(CHR = str_replace(CHR, "NC_035789.1", "10"))  -> mydf
+mydf$CHR <- as.numeric(mydf$CHR)  
+
+m2 <-ggman(mydf,chrom="CHR",bp="BIN_START",pvalue="MASK_FST",snp="SNP",logTransform=FALSE,sigLine=NA, relative.positions = TRUE)
+
+dfm <- m2[[1]]
+dfm$chrom_alt <- factor(dfm$chrom_alt, levels=c(0,1))
+
+dfmsplit <- split(dfm, dfm$chrom)
+xbreaks <- sapply(dfmsplit,function(x) {
+    midpoint <- length(x$index)/2
+    if(midpoint <1) midpoint <- 1
+    return(x$index[midpoint])
+})
+
+m2.total <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt)))+
+  geom_point(size=0.5, aes(alpha=0.33))+  
+  scale_x_continuous(breaks = xbreaks, labels = names(xbreaks),expand = c(0,0),limits = c(0,max(dfm$index)+10)) +
+  guides(colour = "none",alpha="none", fill="none") +
+  scale_y_continuous(expand = c(0,0),limits=c(min(dfm$marker-0.001,na.rm=TRUE),1))+
+  labs(x = "Chromosome") +
+  ggtitle("Masked") +theme_classic()+
+  labs(y="*F<sub>ST</sub>*") +theme(axis.title.y = element_markdown())+ 
+  scale_color_manual(values=c("#7d5577", "#52374e")) 
+
+mydf.sig <- mydf[which(mydf$MASK_OUTLIER == TRUE),]
+mydf.sig$snp <- mydf.sig$SNP
+dfm.sub <- merge(dfm,mydf.sig, by = "snp")
+
+cat("Number of Significant 10kb windows in Masked Genome")
+nrow(mydf.sig)
+
+m2 <-m2.total+geom_point(data=dfm.sub,shape = 17,alpha=1,size=1.5)
+
+mydf.sig1 <- mydf[which(mydf$ORIG_OUTLIER == TRUE & mydf$MASK_OUTLIER != TRUE),]
+mydf.sig1$snp <- mydf.sig1$SNP
+dfm.sub1 <- merge(dfm,mydf.sig1, by = "snp")
+
+m2 <-m2+geom_point(data=dfm.sub1,shape = 25,alpha=1,size=2, aes(fill=as.factor(chrom_alt)))+scale_fill_manual(values=c("#0072B2", "#005280"))
+
+
+m3 <-ggman(mydf,chrom="CHR",bp="BIN_START",pvalue="ORIG_FST",snp="SNP",logTransform=FALSE,sigLine=NA, ymax=1, relative.positions = TRUE)
+
+dfm <- m3[[1]]
+dfm$chrom_alt <- factor(dfm$chrom_alt, levels=c(0,1))
+
+dfmsplit <- split(dfm, dfm$chrom)
+xbreaks <- sapply(dfmsplit,function(x) {
+    midpoint <- length(x$index)/2
+    if(midpoint <1) midpoint <- 1
+    return(x$index[midpoint])
+})
+
+m3.total <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt)))+
+  geom_point(size=0.5, aes(alpha=0.33))+  
+  scale_x_continuous(breaks = xbreaks, labels = names(xbreaks),expand = c(0,0),limits = c(0,max(dfm$index)+10)) +
+  guides(colour = FALSE,alpha=FALSE) +
+  scale_y_continuous(expand = c(0,0),limits=c(min(dfm$marker-0.001,na.rm=TRUE),1))+
+  #scale_alpha_continuous(range=c(0.1,0.95))+
+  labs(x = "Chromosome") +
+  ggtitle("Original") +theme_classic()+
+  labs(y="*F<sub>ST</sub>*") +theme(axis.title.y = element_markdown())+ 
+  scale_color_manual(values=c("#0072B2", "#005280"))
+
+mydf.sig <- mydf[which(mydf$ORIG_OUTLIER == TRUE),]
+mydf.sig$snp <- mydf.sig$SNP
+dfm.sub <- merge(dfm,mydf.sig, by = "snp")
+
+cat("Number of Significant 10kb windows in Original Genome")
+nrow(mydf.sig)
+
+m3 <-m3.total+geom_point(data=dfm.sub,shape = 17,alpha=1,size=1.5)
+
+
+md4 <-ggman(mydf,chrom="CHR",bp="BIN_START",pvalue="DIFF",snp="SNP",logTransform=FALSE,sigLine=NA, relative.positions = TRUE)
+
+dfm <- md4[[1]]
+dfm$chrom_alt <- factor(dfm$chrom_alt, levels=c(0,1))
+
+dfmsplit <- split(dfm, dfm$chrom)
+xbreaks <- sapply(dfmsplit,function(x) {
+    midpoint <- length(x$index)/2
+    if(midpoint <1) midpoint <- 1
+    return(x$index[midpoint])
+})
+
+md4 <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt),size=(0.1+ abs(marker))^2))+
+  geom_point(alpha=0.85)+  
+  scale_size_continuous(range=c(0.01,1.5))+
+  scale_x_continuous(breaks = xbreaks, labels = names(xbreaks),expand = c(0,0),limits = c(0,max(dfm$index)+10)) +
+  guides(colour = "none",alpha="none", fill="none", size="none") +
+  scale_y_continuous(expand = c(0,0),limits=c(-0.51,0.65))+
+  #scale_alpha_continuous(range=c(0.1,0.95))+
+  labs(x = "Chromosome") +
+  ggtitle("Original - Masked") +theme_classic()+
+  labs(y="Difference in *F<sub>ST</sub>*") +theme(axis.title.y = element_markdown())+ 
+  scale_color_manual(values=c("#a59cb5", "#574f66"))
+
+mydf.sig2 <- mydf[which(mydf$ORIG_OUTLIER == TRUE & mydf$MASK_OUTLIER != TRUE),]
+mydf.sig2$snp <- mydf.sig2$SNP
+dfm.sub2 <- merge(dfm,mydf.sig2, by = "snp")
+
+cat("Number of Significant 10kb windows in Original Genome that are no longer significant in Masked Genome")
+length(dfm.sub2$snp)
+
+md4 <-md4+geom_point(data=dfm.sub2,shape = 25,alpha=1,size=2, aes(fill=as.factor(chrom_alt)))+scale_fill_manual(values=c("#0072B2", "#005280"))
+
+
+png(filename="Output/MvO.allFSTs.man.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
+(m3/m2/md4 | b2) +plot_layout(widths = c(4, 1))
+dev.off()
+```
+
+#### Wild
+
+```{r}
+fst.wildAE.dataframe<-read.table("total.wildae.OF.fsts", sep="\t", header=T)
+summary(fst.wildAE.dataframe)
+fst.wildAE.dataframe$GROUP <- factor(fst.wildAE.dataframe$GROUP, levels=c("MASKED", "ORIGINAL" ))
+```
+
+```{r}
+b2wae <-ggplot(fst.wildAE.dataframe, aes(y=WEIGHTED_FST,x = reorder(GROUP, desc(GROUP))))+
+  geom_violin(aes(color=GROUP,fill= GROUP)) +
+  geom_boxplot(aes(fill=GROUP), width=0.25, outlier.shape = NA)+
+  stat_summary(fun=mean, geom="point", shape=23, size=3)+
+  scale_fill_manual(values=c("#7d5577", "#0072B2"))+
+  scale_color_manual(values=c("#7d5577", "#0072B2"))+
+  labs(y="*F<sub>ST</sub>*") + 
+  xlab("Genome")+ guides(color = "none", fill="none")+ 
+  theme_classic() +theme(axis.title.y = element_markdown())
+
+```
+
+```{r}
+mfst.wae <- read.table("masked.wildae.OF_fst.10kb.bed.txt", header = TRUE)
+ofst.wae <- read.table("original.wildae.OF_fst.10kb.bed.txt", header = TRUE)
+mfst.wae <- mfst.wae %>% rename(MASK_FST= WEIGHTED_FST)
+mfst.wae <- mfst.wae %>% rename(MASK_OUTLIER= OUTLIER)
+ofst.wae <- ofst.wae %>% rename(ORIG_FST= WEIGHTED_FST)
+ofst.wae <- ofst.wae %>% rename(ORIG_OUTLIER= OUTLIER)
+o.m.fst.wae <- join(mfst.wae,ofst.wae, by =c("CHROM", "BIN_START"),type="full")
+
+o.m.fst.wae$DIFF <- o.m.fst.wae$ORIG_FST - o.m.fst.wae$MASK_FST
+
+
+fst.wildAE.dataframe %>% t_test(formula = WEIGHTED_FST ~ GROUP, alternative = "two-sided", order = c("MASKED", "ORIGINAL"))
+
+fst.wildAE.dataframe %>% t_test(formula = WEIGHTED_FST ~ GROUP, alternative = "less", order = c("MASKED", "ORIGINAL"))
+
+group_by(fst.wildAE.dataframe, GROUP) %>%
+  summarise(
+    count = n(),
+    mean = mean(WEIGHTED_FST, na.rm = TRUE),
+    sd = sd(WEIGHTED_FST, na.rm = TRUE),
+    se=std.error(WEIGHTED_FST, na.rm = TRUE) )
+```
+
+```{r message=FALSE, warning=FALSE}
+SNP<-c(1:(nrow(o.m.fst.wae)))
+mydf<-data.frame(SNP,o.m.fst.wae)
+mydf$CHR <- mydf$CHROM
+mydf %>% 
+  mutate(CHR = str_replace(CHR, "NC_035780.1", "1")) %>% 
+  mutate(CHR = str_replace(CHR, "NC_035781.1", "2")) %>% 
+  mutate(CHR = str_replace(CHR, "NC_035782.1", "3")) %>% 
+  mutate(CHR = str_replace(CHR, "NC_035783.1", "4")) %>% 
+  mutate(CHR = str_replace(CHR, "NC_035784.1", "5")) %>% 
+  mutate(CHR = str_replace(CHR, "NC_035785.1", "6")) %>% 
+  mutate(CHR = str_replace(CHR, "NC_035786.1", "7")) %>% 
+  mutate(CHR = str_replace(CHR, "NC_035787.1", "8")) %>%
+  mutate(CHR = str_replace(CHR, "NC_035788.1", "9")) %>% 
+  mutate(CHR = str_replace(CHR, "NC_035789.1", "10"))  -> mydf
+mydf$CHR <- as.numeric(mydf$CHR)  
+
+m2.wae <-ggman(mydf,chrom="CHR",bp="BIN_START",pvalue="MASK_FST",snp="SNP",logTransform=FALSE,sigLine=NA, relative.positions = TRUE)
+
+dfm <- m2.wae [[1]]
+dfm$chrom_alt <- factor(dfm$chrom_alt, levels=c(0,1))
+
+dfmsplit <- split(dfm, dfm$chrom)
+xbreaks <- sapply(dfmsplit,function(x) {
+    midpoint <- length(x$index)/2
+    if(midpoint <1) midpoint <- 1
+    return(x$index[midpoint])
+})
+
+m2.wae.total <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt)))+
+  geom_point(size=0.5, aes(alpha=0.33))+  
+  scale_x_continuous(breaks = xbreaks, labels = names(xbreaks),expand = c(0,0),limits = c(0,max(dfm$index)+10)) +
+  guides(colour = "none",alpha="none", fill="none") +
+  scale_y_continuous(expand = c(0,0),limits=c(min(dfm$marker-0.001,na.rm=TRUE),1))+
+  labs(x = "Chromosome") +
+  ggtitle("Masked") +theme_classic()+
+  labs(y="*F<sub>ST</sub>*") +theme(axis.title.y = element_markdown())+ 
+  scale_color_manual(values=c("#7d5577", "#52374e")) 
+
+mydf.sig <- mydf[which(mydf$MASK_OUTLIER == TRUE),]
+mydf.sig$snp <- mydf.sig$SNP
+dfm.sub <- merge(dfm,mydf.sig, by = "snp")
+
+cat("Number of Significant 10kb windows in Masked Genome")
+nrow(mydf.sig)
+
+m2.wae <-m2.wae.total+geom_point(data=dfm.sub,shape = 17,alpha=1,size=1.5)
+
+mydf.sig1 <- mydf[which(mydf$ORIG_OUTLIER == TRUE & mydf$MASK_OUTLIER != TRUE),]
+mydf.sig1$snp <- mydf.sig1$SNP
+dfm.sub1 <- merge(dfm,mydf.sig1, by = "snp")
+
+m2.wae <-m2.wae+geom_point(data=dfm.sub1,shape = 25,alpha=1,size=2, aes(fill=as.factor(chrom_alt)))+scale_fill_manual(values=c("#0072B2", "#005280"))
+
+
+m3.wae <-ggman(mydf,chrom="CHR",bp="BIN_START",pvalue="ORIG_FST",snp="SNP",logTransform=FALSE,sigLine=NA, ymax=1, relative.positions = TRUE)
+
+dfm <- m3.wae[[1]]
+dfm$chrom_alt <- factor(dfm$chrom_alt, levels=c(0,1))
+
+dfmsplit <- split(dfm, dfm$chrom)
+xbreaks <- sapply(dfmsplit,function(x) {
+    midpoint <- length(x$index)/2
+    if(midpoint <1) midpoint <- 1
+    return(x$index[midpoint])
+})
+
+m3.wae.total <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt)))+
+  geom_point(size=0.5, aes(alpha=0.33))+  
+  scale_x_continuous(breaks = xbreaks, labels = names(xbreaks),expand = c(0,0),limits = c(0,max(dfm$index)+10)) +
+  guides(colour = FALSE,alpha=FALSE) +
+  scale_y_continuous(expand = c(0,0),limits=c(min(dfm$marker-0.001,na.rm=TRUE),1))+
+  #scale_alpha_continuous(range=c(0.1,0.95))+
+  labs(x = "Chromosome") +
+  ggtitle("Original") +theme_classic()+
+  labs(y="*F<sub>ST</sub>*") +theme(axis.title.y = element_markdown())+ 
+  scale_color_manual(values=c("#0072B2", "#005280"))
+
+mydf.sig <- mydf[which(mydf$ORIG_OUTLIER == TRUE),]
+mydf.sig$snp <- mydf.sig$SNP
+dfm.sub <- merge(dfm,mydf.sig, by = "snp")
+
+cat("Number of Significant 10kb windows in Original Genome")
+nrow(mydf.sig)
+
+m3.wae <-m3.wae.total+geom_point(data=dfm.sub,shape = 17,alpha=1,size=1.5)
+
+
+md4.wae <-ggman(mydf,chrom="CHR",bp="BIN_START",pvalue="DIFF",snp="SNP",logTransform=FALSE,sigLine=NA, relative.positions = TRUE)
+
+dfm <- md4.wae[[1]]
+dfm$chrom_alt <- factor(dfm$chrom_alt, levels=c(0,1))
+
+dfmsplit <- split(dfm, dfm$chrom)
+xbreaks <- sapply(dfmsplit,function(x) {
+    midpoint <- length(x$index)/2
+    if(midpoint <1) midpoint <- 1
+    return(x$index[midpoint])
+})
+
+md4.wae <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt),size=(0.1+ abs(marker))^2))+
+  geom_point(alpha=0.85)+  
+  scale_size_continuous(range=c(0.01,1.5))+
+  scale_x_continuous(breaks = xbreaks, labels = names(xbreaks),expand = c(0,0),limits = c(0,max(dfm$index)+10)) +
+  guides(colour = "none",alpha="none", fill="none", size="none") +
+  scale_y_continuous(expand = c(0,0),limits=c(-0.51,0.65))+
+  #scale_alpha_continuous(range=c(0.1,0.95))+
+  labs(x = "Chromosome") +
+  ggtitle("Original - Masked") +theme_classic()+
+  labs(y="Difference in *F<sub>ST</sub>*") +theme(axis.title.y = element_markdown())+ 
+  scale_color_manual(values=c("#a59cb5", "#574f66"))
+
+mydf.sig2 <- mydf[which(mydf$ORIG_OUTLIER == TRUE & mydf$MASK_OUTLIER != TRUE),]
+mydf.sig2$snp <- mydf.sig2$SNP
+dfm.sub2 <- merge(dfm,mydf.sig2, by = "snp")
+
+cat("Number of Significant 10kb windows in Original Genome that are no longer significant in Masked Genome")
+length(dfm.sub2$snp)
+
+md4.wae <-md4.wae+geom_point(data=dfm.sub2,shape = 25,alpha=1,size=2, aes(fill=as.factor(chrom_alt)))+scale_fill_manual(values=c("#0072B2", "#005280"))
+
+
+png(filename="Output/MvO.wildAEFSTsOF.man.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
+(m3.wae/m2.wae/md4.wae | b2) +plot_layout(widths = c(4, 1))
+dev.off()
+```
+
+
+
+#### diplotig Fst
+```{bash eval = FALSE, include=FALSE}
+cd Comp
+bedtools intersect -a masked.OF_fst.10kb.bed -b new_diplotigs.bed -wa > masked.OF_fst.10kb.diplo.bed
+bedtools intersect -a original.OF_fst.10kb.bed -b new_diplotigs.bed -wa > original.OF_fst.10kb.diplo.bed
+
+cat <(echo -e "CHROM\tBIN_START\tBIN_END\tWEIGHTED_FST\tOUTLIER") masked.OF_fst.10kb.diplo.bed > masked.OF_fst.10kb.diplo.bed.txt
+cat <(echo -e "CHROM\tBIN_START\tBIN_END\tWEIGHTED_FST\tOUTLIER") original.OF_fst.10kb.diplo.bed > original.OF_fst.10kb.diplo.bed.txt
+
+cat <(mawk '{print $0 "\tMASKED"}' masked.OF_fst.10kb.diplo.bed.txt) <(mawk '{if (NR>1)print $0 "\tORIGINAL"}' original.OF_fst.10kb.diplo.bed.txt) > total.all.OF.diplo.fsts
+sed -i '1 s/MASKED/GROUP/' total.all.OF.diplo.fsts
+```
+
+
+
+```{r}
+fst.diplo.dataframe<-read.table("total.all.OF.diplo.fsts", sep="\t", header=T)
+summary(fst.diplo.dataframe)
+fst.diplo.dataframe$GROUP <- factor(fst.diplo.dataframe$GROUP, levels=c("MASKED", "ORIGINAL" ))
+
+```
+
+```{r}
+b2 <-ggplot(fst.diplo.dataframe, aes(y=WEIGHTED_FST,x = reorder(GROUP, desc(GROUP))))+
+  geom_violin(aes(color=GROUP,fill= GROUP)) +
+  geom_boxplot(aes(fill=GROUP), width=0.25, outlier.shape = NA)+
+  stat_summary(fun=mean, geom="point", shape=23, size=3)+
+  scale_fill_manual(values=c("#7d5577", "#0072B2"))+
+  scale_color_manual(values=c("#7d5577", "#0072B2"))+
+  labs(y="*F<sub>ST</sub>*") + 
+  xlab("Genome")+ guides(color = "none", fill="none")+ 
+  theme_classic() +theme(axis.title.y = element_markdown())
+```
+
+```{r}
+mfst <- read.table("masked.OF_fst.10kb.diplo.bed.txt", header = TRUE)
+ofst <- read.table("original.OF_fst.10kb.diplo.bed.txt", header = TRUE)
+mfst <- mfst %>% rename(MASK_FST= WEIGHTED_FST)
+mfst <- mfst %>% rename(MASK_OUTLIER= OUTLIER)
+ofst <- ofst %>% rename(ORIG_FST= WEIGHTED_FST)
+ofst <- ofst %>% rename(ORIG_OUTLIER= OUTLIER)
+o.m.fst <- join(mfst,ofst, by =c("CHROM", "BIN_START"),type="full")
+#o.m.fst[is.na(o.m.fst)] <- 0
+#o.m.diplo[ORIG_FST %in% "NA"] <- 0
+o.m.fst$DIFF <- o.m.fst$ORIG_FST - o.m.fst$MASK_FST
+
+fst.diplo.dataframe %>% t_test(formula = WEIGHTED_FST ~ GROUP, alternative = "two-sided", order = c("MASKED", "ORIGINAL"))
+
+fst.diplo.dataframe %>% t_test(formula = WEIGHTED_FST ~ GROUP, alternative = "greater", order = c("MASKED", "ORIGINAL"))
+
+res <- wilcox.test(WEIGHTED_FST ~ GROUP, data = fst.diplo.dataframe)
+res
+
+group_by(fst.diplo.dataframe, GROUP) %>%
+  summarise(
+    count = n(),
+    mean = mean(WEIGHTED_FST, na.rm = TRUE),
+    sd = sd(WEIGHTED_FST, na.rm = TRUE),
+    se=std.error(WEIGHTED_FST, na.rm = TRUE) )
+```
+
+```{r}
+SNP<-c(1:(nrow(o.m.diplo)))
+mydf<-data.frame(SNP,o.m.diplo)
+mydf$CHR <- mydf$CHROM
+mydf %>% 
+  mutate(CHR = str_replace(CHR, "NC_035780.1", "1")) %>% 
+  mutate(CHR = str_replace(CHR, "NC_035781.1", "2")) %>% 
+  mutate(CHR = str_replace(CHR, "NC_035782.1", "3")) %>% 
+  mutate(CHR = str_replace(CHR, "NC_035783.1", "4")) %>% 
+  mutate(CHR = str_replace(CHR, "NC_035784.1", "5")) %>% 
+  mutate(CHR = str_replace(CHR, "NC_035785.1", "6")) %>% 
+  mutate(CHR = str_replace(CHR, "NC_035786.1", "7")) %>% 
+  mutate(CHR = str_replace(CHR, "NC_035787.1", "8")) %>%
+  mutate(CHR = str_replace(CHR, "NC_035788.1", "9")) %>% 
+  mutate(CHR = str_replace(CHR, "NC_035789.1", "10"))  -> mydf
+mydf$CHR <- as.numeric(mydf$CHR)  
+
+m2 <-ggman(mydf,chrom="CHR",bp="BIN_START",pvalue="MASK_FST",snp="SNP",logTransform=FALSE,sigLine=NA, relative.positions = TRUE)
+
+dfm <- m2[[1]]
+dfm$chrom_alt <- factor(dfm$chrom_alt, levels=c(0,1))
+
+dfmsplit <- split(dfm, dfm$chrom)
+xbreaks <- sapply(dfmsplit,function(x) {
+    midpoint <- length(x$index)/2
+    if(midpoint <1) midpoint <- 1
+    return(x$index[midpoint])
+})
+
+m2.total <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt)))+
+  geom_point(size=0.5, aes(alpha=0.33))+  
+  scale_x_continuous(breaks = xbreaks, labels = names(xbreaks),expand = c(0,0),limits = c(0,max(dfm$index)+10)) +
+  guides(colour = "none",alpha="none", fill="none") +
+  scale_y_continuous(expand = c(0,0),limits=c(min(dfm$marker-0.001,na.rm=TRUE),1))+
+  labs(x = "Chromosome") +
+  ggtitle("Masked") +theme_classic()+
+  labs(y="*F<sub>ST</sub>*") +theme(axis.title.y = element_markdown())+ 
+  scale_color_manual(values=c("#7d5577", "#52374e")) 
+
+mydf.sig <- mydf[which(mydf$MASK_OUTLIER == TRUE),]
+mydf.sig$snp <- mydf.sig$SNP
+dfm.sub <- merge(dfm,mydf.sig, by = "snp")
+
+nrow(mydf.sig)
+
+m2 <-m2.total+geom_point(data=dfm.sub,shape = 17,alpha=1,size=1.5)
+
+mydf.sig1 <- mydf[which(mydf$ORIG_OUTLIER == TRUE & mydf$MASK_OUTLIER != TRUE),]
+mydf.sig1$snp <- mydf.sig1$SNP
+dfm.sub1 <- merge(dfm,mydf.sig1, by = "snp")
+
+m2 <-m2+geom_point(data=dfm.sub1,shape = 25,alpha=1,size=2, aes(fill=as.factor(chrom_alt)))+scale_fill_manual(values=c("#0072B2", "#005280"))
+
+
+m3 <-ggman(mydf,chrom="CHR",bp="BIN_START",pvalue="ORIG_FST",snp="SNP",logTransform=FALSE,sigLine=NA, ymax=1, relative.positions = TRUE)
+
+dfm <- m3[[1]]
+dfm$chrom_alt <- factor(dfm$chrom_alt, levels=c(0,1))
+
+dfmsplit <- split(dfm, dfm$chrom)
+xbreaks <- sapply(dfmsplit,function(x) {
+    midpoint <- length(x$index)/2
+    if(midpoint <1) midpoint <- 1
+    return(x$index[midpoint])
+})
+
+m3.total <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt)))+
+  geom_point(size=0.5, aes(alpha=0.33))+  
+  scale_x_continuous(breaks = xbreaks, labels = names(xbreaks),expand = c(0,0),limits = c(0,max(dfm$index)+10)) +
+  guides(colour = FALSE,alpha=FALSE) +
+  scale_y_continuous(expand = c(0,0),limits=c(min(dfm$marker-0.001,na.rm=TRUE),1))+
+  #scale_alpha_continuous(range=c(0.1,0.95))+
+  labs(x = "Chromosome") +
+  ggtitle("Original") +theme_classic()+
+  labs(y="*F<sub>ST</sub>*") +theme(axis.title.y = element_markdown())+ 
+  scale_color_manual(values=c("#0072B2", "#005280"))
+
+mydf.sig <- mydf[which(mydf$ORIG_OUTLIER == TRUE),]
+mydf.sig$snp <- mydf.sig$SNP
+dfm.sub <- merge(dfm,mydf.sig, by = "snp")
+
+nrow(mydf.sig)
+
+m3 <-m3.total+geom_point(data=dfm.sub,shape = 17,alpha=1,size=1.5)
+
+
+md4 <-ggman(mydf,chrom="CHR",bp="BIN_START",pvalue="DIFF",snp="SNP",logTransform=FALSE,sigLine=NA, relative.positions = TRUE)
+
+dfm <- md4[[1]]
+dfm$chrom_alt <- factor(dfm$chrom_alt, levels=c(0,1))
+
+dfmsplit <- split(dfm, dfm$chrom)
+xbreaks <- sapply(dfmsplit,function(x) {
+    midpoint <- length(x$index)/2
+    if(midpoint <1) midpoint <- 1
+    return(x$index[midpoint])
+})
+
+md4 <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt),size=(0.1+ abs(marker))^2))+
+  geom_point(alpha=0.85)+  
+  scale_size_continuous(range=c(0.01,1.5))+
+  scale_x_continuous(breaks = xbreaks, labels = names(xbreaks),expand = c(0,0),limits = c(0,max(dfm$index)+10)) +
+  guides(colour = "none",alpha="none", fill="none", size="none") +
+  scale_y_continuous(expand = c(0,0),limits=c(-0.55,0.65))+
+  #scale_alpha_continuous(range=c(0.1,0.95))+
+  labs(x = "Chromosome") +
+  ggtitle("Original - Masked") +theme_classic()+
+  labs(y="Difference in *F<sub>ST</sub>*") +theme(axis.title.y = element_markdown())+ 
+  scale_color_manual(values=c("#a59cb5", "#574f66"))
+
+
+mydf.sig2 <- mydf[which(mydf$ORIG_OUTLIER == TRUE & mydf$MASK_OUTLIER != TRUE),]
+mydf.sig2$snp <- mydf.sig2$SNP
+dfm.sub2 <- merge(dfm,mydf.sig2, by = "snp")
+
+
+md4 <-md4+geom_point(data=dfm.sub2,shape = 25,alpha=1,size=2, aes(fill=as.factor(chrom_alt)))+scale_fill_manual(values=c("#0072B2", "#005280"))
+
+
+png(filename="Output/MvO.allFSTs.diplo.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
+(m3/m2/md4 | b2) +plot_layout(widths = c(4, 1))
+dev.off()
+
+```
+
+
+## Chromsome by Chromosome Plots
+
+```{bash}
+cd Comp
+cat <(echo -e "chrom \t start \t end \t counts \t dataset") ../other_files/haplotigs.bed ../other_files/primary.bed <(mawk '{print $1 "\t" $2 "\t" $3 "\t0\tdiplotig"}' merged.diplotig.windows
+.bed) > contigs.marked.bed
+
+cat <(echo -e "chrom \t start \t end \t counts \t dataset") <(mawk '{print $0 "\tORIG_SNPS"}' ORIG.snps.maf01.per.10kb.bed ) <(mawk '{print $0 "\tMASK_SNPS"}'  MASKED.snps.maf01.per.10kb.bed ) <(mawk '{print $0 "\texons"}' ../other_files/sorted.exons.per.10kb.bed ) <(mawk '{print $1 "\t" $2 "\t" $3 "\t" $4 "\tMASKCov"}'  10kb.masked.cov.bed ) <(mawk '{print $0 "\tORIGCov"}'  10kb.original.cov.bed )  <(mawk '{print $1 "\t" $2 "\t" $3 "\t" $5 "\tMASK_HET"}' MASK.het.01.per10kb.bed) <(mawk '{print $1 "\t" $2 "\t" $3 "\t" $5 "\tORIG_HET"}' ORIG.het.01.per10kb.bed) <(mawk '{print $1 "\t" $2 "\t" $3 "\t" $4 "\tORIG_FST"}'  original.OF_fst.10kb.bed ) <(mawk '{print $1 "\t" $2 "\t" $3 "\t" $4 "\tMASK_FST"}'  masked.OF_fst.10kb.bed )  <(mawk '{print $1 "\t" $2 "\t" $3 "\t" $5 "\tMASK_PI"}'  masked.pi.10kb.bed ) <(mawk '{print $1 "\t" $2 "\t" $3 "\t" $5 "\tORIG_PI"}'  original.pi.10kb.bed ) > tidyCOMP.bed
+
+```
+
+
+```{r}
+tidy1COMP<- read.table("tidyCOMP.bed", sep="\t", header=T)
+
+summary(tidy1COMP)
+
+tidy1COMP$dataset <- factor(tidy1COMP$dataset, levels=c("ORIG_SNPS","MASK_SNPS", "exons","ORIGCov" , "MASKCov", "ORIG_HET", "MASK_HET", "ORIG_FST","MASK_FST", "SNPDIFF" ,"ORIG_PI", "MASK_PI" ))
+
+tidysnpsCOMP <- subset(tidy1COMP, dataset == "ORIG_SNPS" |dataset == "MASK_SNPS", select=c(chrom, start, end, counts, dataset))
+
+tidyexonsCOMP <-subset(tidy1COMP, dataset == "exons", select=c(chrom, start, end, counts, dataset))
+tidydiffsCOMP <-subset(tidy1COMP, dataset == "SNPDIFF", select=c(chrom, start, end, counts, dataset))
+
+tidycovCOMP <-subset(tidy1COMP, dataset == "ORIGCov" | dataset == "MASKCov", select=c(chrom, start, end, counts, dataset))
+
+
+tcc1 <-subset(tidy1COMP, dataset == "ORIGCov",select=c(chrom, start, end, counts))
+tcc2 <-subset(tidy1COMP, dataset == "MASKCov",select=c(chrom, start, end, counts))
+
+tcc1 <- tcc1 %>% rename(ORIGCov= counts)
+tcc2 <- tcc2 %>% rename(MASKCov= counts)
+
+tidycovCOMP <- join(tcc1,tcc2, by =c("chrom", "start", "end"),type="full")
+
+tidycovCOMP <- reshape2::melt(tidycovCOMP, id.vars=c("chrom","start","end"), value.name=c("counts"))
+
+tidycovCOMP <- tidycovCOMP %>% 
+  rename(dataset = variable)
+
+tidycovCOMP$counts[tidycovCOMP$counts == 0] <- NA
+
+tidycovCOMP$counts <- tidycovCOMP$counts/90
+
+
+
+
+thc1 <-subset(tidy1COMP, dataset == "ORIG_HET",select=c(chrom, start, end, counts))
+thc2 <-subset(tidy1COMP, dataset == "MASK_HET",select=c(chrom, start, end, counts))
+
+thc1 <- thc1 %>% rename(ORIG_HET= counts)
+thc2 <- thc2 %>% rename(MASK_HET= counts)
+
+tidyhetCOMP <- join(thc1,thc2, by =c("chrom", "start", "end"),type="full")
+
+tidyhetCOMP <- reshape2::melt(tidyhetCOMP, id.vars=c("chrom","start","end"), value.name=c("counts"))
+
+tidyhetCOMP <- tidyhetCOMP %>% 
+  rename(dataset = variable)
+
+tf1 <-subset(tidy1COMP, dataset == "ORIG_FST",select=c(chrom, start, end, counts))
+tf2 <-subset(tidy1COMP, dataset == "MASK_FST",select=c(chrom, start, end, counts))
+
+tf1 <- tf1 %>% rename(ORIG_FST= counts)
+tf2 <- tf2 %>% rename(MASK_FST= counts)
+
+tidyFSTCOMP <- join(tf1,tf2, by =c("chrom", "start", "end"),type="full")
+
+tidyFSTCOMP <- reshape2::melt(tidyFSTCOMP, id.vars=c("chrom","start","end"), value.name=c("counts"))
+
+tidyFSTCOMP <- tidyFSTCOMP %>% 
+  rename(dataset = variable)
+
+
+tp1 <-subset(tidy1COMP, dataset == "ORIG_PI",select=c(chrom, start, end, counts))
+tp2 <-subset(tidy1COMP, dataset == "MASK_PI",select=c(chrom, start, end, counts))
+
+tp1 <- tp1 %>% rename(ORIG_PI= counts)
+tp2 <- tp2 %>% rename(MASK_PI= counts)
+
+tidyPICOMP <- join(tp1,tp2, by =c("chrom", "start", "end"),type="full")
+
+tidyPICOMP <- reshape2::melt(tidyPICOMP, id.vars=c("chrom","start","end"), value.name=c("counts"))
+
+tidyPICOMP <- tidyPICOMP %>% 
+  rename(dataset = variable)
+
+
+tidyFSTCOMP$counts[tidyFSTCOMP$counts < 0] <- 0
+
+tidymis <- read.table("contigs.marked.bed", sep="\t", header=T)
+
+``` 
+
+
+```{r}
+chromplotCOMP <- function(chrom,ncbi) {
+
+Title <- "Output/MolEcoSNPsCovHetFST"
+png <-".png"
+Filename <- paste(Title,chrom,png,sep="")
+
+ggTitle <- paste("Masked vs. Original ", "Chrom ",chrom," (",ncbi,")",sep="")
+
+
+png(filename=Filename, type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
+tidysnps1 <- subset(tidysnpsCOMP, chrom == ncbi, select=c(chrom, start, end, counts, dataset))
+tidycov1 <- subset(tidycovCOMP, chrom == ncbi, select=c(chrom, start, end, counts, dataset))
+tidyexons1 <- subset(tidyexonsCOMP, chrom == ncbi, select=c(chrom, start, end, counts, dataset))
+tidydiffs1 <- subset(tidydiffsCOMP, chrom == ncbi, select=c(chrom, start, end, counts, dataset))
+tidyhet1 <- subset(tidyhetCOMP, chrom == ncbi, select=c(chrom, start, end, counts, dataset))
+tidyFST1<- subset(tidyFSTCOMP, chrom == ncbi, select=c(chrom, start, end, counts, dataset))
+tidyPI1<- subset(tidyPICOMP, chrom == ncbi, select=c(chrom, start, end, counts, dataset))
+tidymis1 <- subset(tidymis, chrom == ncbi, select=c(chrom, start, end, counts, dataset))
+tidymis2 <- subset(tidymis1, dataset == "primary", select=c(chrom, start, end, counts, dataset))
+tidymis3 <- subset(tidymis1, dataset == "haplotig", select=c(chrom, start, end, counts, dataset))
+tidymis4 <- subset(tidymis1, dataset == "diplotig", select=c(chrom, start, end, counts, dataset))
+graph.breaks <- c("ORIG_SNPS","MASK_SNPS", "exons","ORIGCov" , "MASKCov", "ORIG_HET", "MASK_HET", "ORIG_FST","MASK_FST", "SNPDIFF","ORIG_PI", "MASK_PI")
+graph.labels <- c("Original SNPS","Masked SNPs","exons","Original Coverage", "Masked Coverage", "Original Heterozygosity", "Masked Heterozygosity", "Original FST", "Masked FST", "SNP Difference", "Original Nucleotide Diversity", "Masked Nucleotide Diversity")
+
+
+cbPalette1 <- c("#0072B2","#7d5577","#999999","#0072B2","#7d5577","#0072B2","#7d5577","#0072B2","#7d5577", "#009E73","#0072B2","#7d5577" )
+
+
+
+
+j1 <- ggplot(tidysnps1, aes(x=start, y= counts, fill= dataset, col=dataset, alpha=dataset )) +
+    #if(nrow(tidymis1)!=0){geom_rect(data=tidymis1, aes(ymin=0,ymax=2000,xmin=start,xmax=end, fill=dataset), color="gray",  alpha=0.5)   } 
+    geom_rect(data=tidymis2, aes(ymin=0,ymax=650,xmin=start,xmax=end), color="dark gray",  alpha=0.5) +
+    geom_rect(data=tidymis3, aes(ymin=0,ymax=650,xmin=start,xmax=end), color="dark gray", fill="#999999", alpha=0.5) +
+    geom_rect(data=tidymis4, aes(ymin=0,ymax=650,xmin=start,xmax=end), color="dark gray",  fill="#ffe39c", alpha=0.5) 
+j1 <- j1 +  geom_area(position = 'identity', size = 0.00)+
+  scale_alpha_manual(values=c(0.85,0.65,0.65,1,1,1,1,1,1), breaks = graph.breaks, labels=graph.labels) +
+  scale_color_manual(values=cbPalette1, breaks = graph.breaks, labels=graph.labels)+
+  scale_fill_manual(values=cbPalette1, breaks = graph.breaks, labels=graph.labels)+
+  scale_y_sqrt(breaks=c(1,10,50,100,500,650),expand = c(0, 0), limits = c(0,650)) +
+  scale_x_continuous(expand=c(0,0))+
+  xlab(NULL)+
+  ylab("Count per 10kb window")+
+  theme_classic() +
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank())
+
+j2 <- ggplot(tidycov1, aes(x=start, y= counts, fill=dataset, col=dataset, shape=dataset,alpha=dataset)) +
+    geom_rect(data=tidymis2, aes(ymin=0,ymax=60,xmin=start,xmax=end), color="dark gray",  alpha=0.5) +
+    geom_rect(data=tidymis3, aes(ymin=0,ymax=60,xmin=start,xmax=end), color="dark gray", fill="#999999", alpha=0.5) +
+    geom_rect(data=tidymis4, aes(ymin=0,ymax=60,xmin=start,xmax=end), color="dark gray",  fill="#ffe39c", alpha=0.5) 
+j2 <- j2 + geom_line(aes(y=rollmean(counts, 3, fill=c("extend",NA, NA))),size=0.5) +
+  geom_point(aes(size=dataset), alpha=0.5) +
+  scale_size_manual(values=c(0.8,1,1,0.8,1,0.8,1,0.8,1), breaks = graph.breaks, labels=graph.labels) +
+  scale_shape_manual(values=c(21,23,1,21,23,21,23,21,23), breaks = graph.breaks, labels=graph.labels) +
+  scale_alpha_manual(values=c(0.8,1,1,0.8,1,0.8,1,0.8,1), breaks = graph.breaks, labels=graph.labels) +
+  scale_x_continuous(expand=c(0,0))+
+  scale_color_manual(values=cbPalette1, breaks = graph.breaks, labels=graph.labels)+
+  scale_fill_manual(values=cbPalette1, breaks = graph.breaks,labels=graph.labels)+
+  scale_y_sqrt(breaks=c(1,10,20,30,40,50,100)) +
+  coord_cartesian(ylim=c(0,60), expand=c(0,0))+
+  theme_classic() +
+  ylab("Mean Coverage per 10kb window")+
+  theme(axis.title.x=element_blank(),axis.text.x=element_blank(),axis.ticks.x=element_blank()) +
+  ggtitle(ggTitle) 
+  
+
+
+
+j4 <- ggplot(tidyhet1, aes(x=start, y= counts, fill= dataset , col= dataset, shape =dataset, alpha=dataset)) +
+  geom_rect(data=tidymis2, aes(ymin=0,ymax=0.75,xmin=start,xmax=end), color="gray",  
+            alpha=0.5) +
+  geom_rect(data=tidymis3, aes(ymin=0,ymax=0.75,xmin=start,xmax=end), color="gray", 
+            fill="#999999", alpha=0.5) +
+  geom_rect(data=tidymis4, aes(ymin=0,ymax=0.75,xmin=start,xmax=end), color="dark gray",  fill="#ffe39c", alpha=0.5) 
+  #if(nrow(tidymis1)!=0){geom_rect(data=tidymis1, aes(ymin=0,ymax=1,xmin=start,xmax=end,fill=dataset, col=dataset),alpha=0.5) } 
+if (chrom < 6 ) {
+j4 <- j4 +
+  #geom_area(alpha=0.75,position = 'identity', size = 0.05)+
+  #geom_line(size = 0.15) +
+  geom_point(size=0.5, alpha=0.45) +
+  geom_line(aes(y=rollmean(counts, 3, fill=c("extend",NA, NA))), size=0.5) +
+  scale_shape_manual(values=c(21,23,1,21,23,21,23,21,23), breaks = graph.breaks, labels=graph.labels) +
+  scale_alpha_manual(values=c(0.8,1,1,0.8,1,0.8,1,0.8,1), breaks = graph.breaks, labels=graph.labels) +#geom_smooth(span = 0.0001) +
+  scale_color_manual(values=cbPalette1, breaks = graph.breaks, labels=graph.labels)+
+  scale_fill_manual(values=cbPalette1, breaks = graph.breaks, labels=graph.labels)+
+  #scale_y_continuous(expand=c(0,0))+
+  #geom_smooth(method = "lm", se = FALSE, aes(x=cnv, y=snps, col="black")) 
+  #geom_point() +
+  scale_x_continuous(expand=c(0,0))+ 
+  #scale_y_sqrt(expand=c(0,0)) +
+  #geom_smooth() +
+  #scale_y_log10(expand=c(0,0)) +
+  coord_cartesian( ylim=c(0.0,0.75),expand=c(0,0))+
+  xlab(NULL)+
+  ylab("Heterozygosity")+
+  theme_classic() +
+  theme(axis.title.x=element_blank(),axis.text.x=element_blank(),axis.ticks.x=element_blank())  
+} else {
+j4 <- j4 +
+  #geom_area(alpha=0.75,position = 'identity', size = 0.05)+
+  #geom_line(size = 0.15) +
+  geom_point(size=0.5, alpha=0.45) +
+  geom_line(aes(y=rollmean(counts, 3, na.pad=TRUE, size=0.5))) +
+  scale_shape_manual(values=c(21,23,1,21,23,21,23,21,23), breaks = graph.breaks, labels=graph.labels) +
+  scale_alpha_manual(values=c(0.8,1,1,0.8,1,0.8,1,0.8,1), breaks = graph.breaks, labels=graph.labels) +#geom_smooth(span = 0.0001) +
+  scale_color_manual(values=cbPalette1, breaks = graph.breaks, labels=graph.labels)+
+  scale_fill_manual(values=cbPalette1, breaks = graph.breaks, labels=graph.labels)+
+  #scale_y_continuous(expand=c(0,0))+
+  #geom_smooth(method = "lm", se = FALSE, aes(x=cnv, y=snps, col="black")) 
+  #geom_point() +
+  scale_x_continuous(expand=c(0,0))+ 
+  #scale_y_sqrt(expand=c(0,0)) +
+  #geom_smooth() +
+  #scale_y_log10(expand=c(0,0)) +
+  coord_cartesian( ylim=c(0.0,0.75),expand=c(0,0))+
+  xlab(NULL)+
+  ylab("Heterozygosity")+
+  theme_classic() +
+  theme(axis.title.x=element_blank(),axis.text.x=element_blank(),axis.ticks.x=element_blank())  
+}
+
+
+
+j5 <- ggplot(tidyFST1, aes(x=start, y= counts, fill= dataset , col= dataset, shape =dataset, alpha=dataset)) +
+  geom_rect(data=tidymis2, aes(ymin=0,ymax=0.75,xmin=start,xmax=end), color="gray",  
+            alpha=0.5) +
+  geom_rect(data=tidymis3, aes(ymin=0,ymax=0.75,xmin=start,xmax=end), color="gray", 
+            fill="#999999", alpha=0.5) +
+  geom_rect(data=tidymis4, aes(ymin=0,ymax=0.75,xmin=start,xmax=end), color="dark gray",  fill="#ffe39c", alpha=0.5) 
+  #if(nrow(tidymis1)!=0){geom_rect(data=tidymis1, aes(ymin=0,ymax=1,xmin=start,xmax=end,fill=dataset, col=dataset),alpha=0.5) } 
+
+if (chrom < 6) {
+j5 <- j5 +
+  #geom_area(alpha=0.75,position = 'identity', size = 0.05)+
+  #geom_line(size = 0.15) +
+  geom_point(size=0.5, alpha=0.45) +
+  geom_line(aes(y=rollmean(counts, 3, fill=c("extend",NA, NA))), size=0.5) +
+  scale_shape_manual(values=c(21,23,1,21,23,21,23,21,23), breaks = graph.breaks, labels=graph.labels) +
+  scale_alpha_manual(values=c(0.8,1,1,0.8,1,0.8,1,0.8,1), breaks = graph.breaks, labels=graph.labels) +
+  #geom_smooth(span = 0.0001) +
+  scale_color_manual(values=cbPalette1, breaks = graph.breaks, labels=graph.labels)+
+  scale_fill_manual(values=cbPalette1, breaks = graph.breaks, labels=graph.labels)+
+  #scale_y_continuous(expand=c(0,0))+
+  #geom_smooth(method = "lm", se = FALSE, aes(x=cnv, y=snps, col="black")) 
+  #geom_point() +
+  scale_x_continuous(expand=c(0,0))+ 
+  scale_y_sqrt(expand=c(0,0)) +
+  #geom_smooth() +
+  #scale_y_log10(expand=c(0,0)) +
+  coord_cartesian( ylim=c(0,0.75),expand=c(0,0))+
+  xlab(NULL)+
+  ylab("*F<sub>ST</sub>*")+
+  theme_classic() +
+  theme(axis.title.x=element_blank(),axis.text.x=element_blank(),axis.ticks.x=element_blank(),axis.title.y = element_markdown())  
+} else {
+j5 <- j5 +
+  #geom_area(alpha=0.75,position = 'identity', size = 0.05)+
+  #geom_line(size = 0.15) +
+  geom_point(size=0.5, alpha=0.45) +
+  geom_line(aes(y=rollmean(counts, 3, na.pad=TRUE, size=0.5) ))+
+  scale_shape_manual(values=c(21,23,1,21,23,21,23,21,23), breaks = graph.breaks, labels=graph.labels) +
+  scale_alpha_manual(values=c(0.8,1,1,0.8,1,0.8,1,0.8,1), breaks = graph.breaks, labels=graph.labels) +
+  #geom_smooth(span = 0.0001) +
+  scale_color_manual(values=cbPalette1, breaks = graph.breaks, labels=graph.labels)+
+  scale_fill_manual(values=cbPalette1, breaks = graph.breaks, labels=graph.labels)+
+  #scale_y_continuous(expand=c(0,0))+
+  #geom_smooth(method = "lm", se = FALSE, aes(x=cnv, y=snps, col="black")) 
+  #geom_point() +
+  scale_x_continuous(expand=c(0,0))+ 
+  scale_y_sqrt(expand=c(0,0)) +
+  #geom_smooth() +
+  #scale_y_log10(expand=c(0,0)) +
+  coord_cartesian( ylim=c(0,0.75),expand=c(0,0))+
+  xlab(NULL)+
+  ylab("*F<sub>ST</sub>*")+
+  theme_classic() +
+  theme(axis.title.x=element_blank(),axis.text.x=element_blank(),axis.ticks.x=element_blank(),axis.title.y = element_markdown())  
+}
+
+
+j6 <- ggplot(tidyPI1, aes(x=start, y= counts, fill= dataset , col= dataset, shape =dataset, alpha=dataset)) +
+  geom_rect(data=tidymis2, aes(ymin=0,ymax=0.03,xmin=start,xmax=end), color="gray",  
+            alpha=0.5) +
+  geom_rect(data=tidymis3, aes(ymin=0,ymax=0.03,xmin=start,xmax=end), color="gray", 
+            fill="#999999", alpha=0.5) +
+  geom_rect(data=tidymis4, aes(ymin=0,ymax=0.03,xmin=start,xmax=end), color="dark gray",  fill="#ffe39c", alpha=0.5) 
+  #if(nrow(tidymis1)!=0){geom_rect(data=tidymis1, aes(ymin=0,ymax=1,xmin=start,xmax=end,fill=dataset, col=dataset),alpha=0.5) } 
+
+if (chrom < 6) {
+j6 <- j6 +
+  #geom_area(alpha=0.75,position = 'identity', size = 0.05)+
+  #geom_line(size = 0.15) +
+  geom_point(size=0.5, alpha=0.45) +
+  geom_line(aes(y=rollmean(counts, 3, fill=c("extend",NA, NA))), size=0.5) +
+  scale_shape_manual(values=c(21,23,1,21,23,21,23,21,23,1,21,23), breaks = graph.breaks, labels=graph.labels) +
+  scale_alpha_manual(values=c(0.8,1,5,0.8,1,0.8,1,0.8,1,5,0.8,1), breaks = graph.breaks, labels=graph.labels) +
+  #geom_smooth(span = 0.0001) +
+  scale_color_manual(values=cbPalette1, breaks = graph.breaks, labels=graph.labels)+
+  scale_fill_manual(values=cbPalette1, breaks = graph.breaks, labels=graph.labels)+
+  #scale_y_continuous(expand=c(0,0))+
+  #geom_smooth(method = "lm", se = FALSE, aes(x=cnv, y=snps, col="black")) 
+  #geom_point() +
+  scale_x_continuous(expand=c(0,0))+ 
+  scale_y_sqrt(expand=c(0,0)) +
+  #geom_smooth() +
+  #scale_y_log10(expand=c(0,0)) +
+  coord_cartesian( ylim=c(0,0.03),expand=c(0,0))+
+  xlab(NULL)+
+  ylab("&pi;")+
+  theme_classic() +
+  theme(axis.title.x=element_blank(),axis.text.x=element_blank(),axis.ticks.x=element_blank(),axis.title.y = element_markdown())  
+} else {
+j6 <- j6 +
+  #geom_area(alpha=0.75,position = 'identity', size = 0.05)+
+  #geom_line(size = 0.15) +
+  geom_point(size=0.5, alpha=0.45) +
+  geom_line(aes(y=rollmean(counts, 3, na.pad=TRUE, size=0.5) ))+
+  scale_shape_manual(values=c(21,23,1,21,23,21,23,21,23,21,23), breaks = graph.breaks, labels=graph.labels) +
+  scale_alpha_manual(values=c(0.8,1,1,0.8,1,0.8,1,0.8,1,0.8,1), breaks = graph.breaks, labels=graph.labels) +
+  #geom_smooth(span = 0.0001) +
+  scale_color_manual(values=cbPalette1, breaks = graph.breaks, labels=graph.labels)+
+  scale_fill_manual(values=cbPalette1, breaks = graph.breaks, labels=graph.labels)+
+  #scale_y_continuous(expand=c(0,0))+
+  #geom_smooth(method = "lm", se = FALSE, aes(x=cnv, y=snps, col="black")) 
+  #geom_point() +
+  scale_x_continuous(expand=c(0,0))+ 
+  scale_y_sqrt(expand=c(0,0)) +
+  #geom_smooth() +
+  #scale_y_log10(expand=c(0,0)) +
+  coord_cartesian( ylim=c(0,0.03),expand=c(0,0))+
+  xlab(NULL)+
+  ylab("&pi;")+
+  theme_classic() +
+  theme(axis.title.x=element_blank(),axis.text.x=element_blank(),axis.ticks.x=element_blank(),axis.title.y = element_markdown())  
+}
+
+
+
+
+print(j2  / j1/ j5 /j4 / j6 + plot_layout(heights = c(1.5,1.5,1.0,1.0, 1.0) ) )
+
+
+dev.off()
+}
+```
+
+
+
+```{r}
+for(i in 1:10){
+  chromplotCOMP(chroms[i],ncbis[i])
+}
+```
+
+
+
+
+
+
+
+
+
+## Structural Variant Divergence
+```{bash}
+cat <(echo -e "CHROM\tBIN_START\tBIN_END\tNAME\tTYPE\tLENGTH") ./Population_Genomics/sv.full.bed > ./Population_Genomics/sv.full.bed.txt
+
+cat <(echo -e "CHROM\tBIN_START\tBIN_END\tNAME\tTYPE\tLENGTH") ./Population_Genomics/sv.full.nomissing.bed > ./Population_Genomics/sv.full.nomissing.bed.txt
+
+
+```
+
+```{r}
+sv_data <- read.table("./Population_Genomics/sv.full.bed.txt",header = TRUE)
+sv_data_nm <- read.table("./Population_Genomics/sv.full.nomissing.bed.txt",header = TRUE)
+
+
+
+
+group_by(sv_data, TYPE) %>%
+  dplyr::summarise(
+    count = n(),
+    mean = mean(LENGTH, na.rm = TRUE),
+    sd = sd(LENGTH, na.rm = TRUE),
+    se=std.error(LENGTH, na.rm = TRUE) )%>% mutate_if(is.numeric, round, 0)
+
+group_by(sv_data_nm, TYPE) %>%
+  dplyr::summarise(
+    count = n(),
+    mean = mean(LENGTH, na.rm = TRUE),
+    sd = sd(LENGTH, na.rm = TRUE),
+    se=std.error(LENGTH, na.rm = TRUE) )%>% mutate_if(is.numeric, round, 0)
+
+```
+
+```{r}
+mask_cn <- read.table("./Population_Genomics/masked.cnv.tab",header = FALSE)
+
+mask_cn <- mask_cn[which(m.freq.ni > 0.05),]
+
+getVst <- function(dat, group1, group2) {
+  groupLevels <- levels(droplevels(group2))
+  j <- 0
+  total_dat <-0
+  for (i in levels(group2)){
+  j <- j+1
+  assign(paste("dat",j, sep=""), na.omit(dat[group1==groupLevels[groupLevels==i]]))
+  total_dat <- cbind(total_dat,eval(as.name(paste("dat",j,sep=""))))
+  
+  }
+  
+  total_dat <- total_dat[,-1]
+
+  Vtotal <- rowVars(as.matrix(total_dat))
+  
+  j <- 0
+  Vgroup <- 0
+  for (i in levels(droplevels(group2))){
+  j <- j+1
+  dat <- eval(as.name(paste("dat",j,sep="")))
+  
+  Vgroup <- Vgroup + rowVars(as.matrix(dat))*length(dat[1,])
+  
+  }
+  Vgroup <- Vgroup / length(total_dat[1,])
+ 
+  
+  Vst <- (Vtotal-Vgroup) / Vtotal
+  
+
+  
+  return(Vst)
+}  
+mask_cn$VST <- getVst(mask_cn[,-c(1,2,3)],popmap$POP,popmap.ni$POP)
+
+mask_cn$VSTW <- getVst(mask_cn[,-c(1,2,3,94)],popmap$POP,popmap.wild$POP)
+
+mask_cn$VSTWAE <- getVst(mask_cn[,-c(1,2,3,94,95)],popmap$POP,popmap.wildAE$POP)
+mask_cn$VSTWvD <- getVst(mask_cn[,-c(1,2,3,94,95,96)],popmap$Type,popmap.ni$Type)
+```  
+  
+
+```{r}
+mask_cnVST <- mask_cn[complete.cases(mask_cn$VST),]
+
+mask_cnWVST <- mask_cn[complete.cases(mask_cn$VSTW),]
+
+mask_cnWAEVST <- mask_cn[complete.cases(mask_cn$VSTWAE),]
+
+mask_cnWvDVST <- mask_cn[complete.cases(mask_cn$VSTWvD),]
+
+write(paste(mask_cnVST$V1,mask_cnVST$V2,mask_cnVST$VST, sep='\t'),"./Population_Genomics/Intermediate_Files/masked_vst.tab")
+
+
+write(paste(mask_cnWVST$V1,mask_cnWVST$V2,mask_cnWVST$VSTW, sep='\t'),"./Population_Genomics/Intermediate_Files/masked_wild_vst.tab")
+
+
+write(paste(mask_cnWAEVST$V1,mask_cnWAEVST$V2,mask_cnWAEVST$VSTWAE, sep='\t'),"./Population_Genomics/Intermediate_Files/masked_wildAE_vst.tab")
+
+summary(mask_cnVST$VST)
+std.error(mask_cnVST$VST)
+
+```
+
+```{bash}
+mawk '{print $1 "\t" $2-1 "\t" $2 "\t" $3}' ./Population_Genomics/Intermediate_Files/masked_vst.tab > ./Population_Genomics/Intermediate_Files/masked_vst.bed
+
+bedtools intersect -b <(sort -k 1,1 -k2,2n ./Population_Genomics/Intermediate_Files/masked_vst.bed) -a <(sort -k 1,1 -k2,2n ./other_files/10kb.bed) -wa -wb -sorted |bedtools merge -d -1 -c 7 -o mean > ./Population_Genomics/Intermediate_Files/mask.vst.10kb.bed
+
+cat <(echo -e "CHROM\tBIN_START\tBIN_END\tWEIGHTED_VST") ./Population_Genomics/Intermediate_Files/mask.vst.10kb.bed > ./Population_Genomics/Intermediate_Files/masked.all.windowed.weir.vst
+
+cat <(echo -e "CHROM\tBIN_START\tBIN_END\tWEIGHTED_VST") ./Population_Genomics/Intermediate_Files/masked_vst.bed > ./Population_Genomics/Intermediate_Files/masked_vst.bed.txt
+```
+
+```{r}
+
+#mvst <- read.table("./Population_Genomics/Intermediate_Files/masked.all.windowed.weir.vst", header = TRUE)
+#mvst <- read.table("masked.wild.AE.windowed.weir.vst", header = TRUE)
+
+mvst <- read.table("./Population_Genomics/Intermediate_Files/masked_vst.tab", header = FALSE)
+colnames(mvst) <- c("CHROM","BIN_START", "WEIGHTED_VST")
+
+mvst <- mvst %>% dplyr::rename(MASK_VST= WEIGHTED_VST)
+
+
+```
+
+
+```{r}
+
+SNP<-c(1:(nrow(mvst)))
+mydf<-data.frame(SNP,mvst)
+mydf$CHR <- mydf$CHROM
+mydf %>% 
+  mutate(CHR = str_replace(CHR, "NC_035780.1", "1")) %>% 
+  mutate(CHR = str_replace(CHR, "NC_035781.1", "2")) %>% 
+  mutate(CHR = str_replace(CHR, "NC_035782.1", "3")) %>% 
+  mutate(CHR = str_replace(CHR, "NC_035783.1", "4")) %>% 
+  mutate(CHR = str_replace(CHR, "NC_035784.1", "5")) %>% 
+  mutate(CHR = str_replace(CHR, "NC_035785.1", "6")) %>% 
+  mutate(CHR = str_replace(CHR, "NC_035786.1", "7")) %>% 
+  mutate(CHR = str_replace(CHR, "NC_035787.1", "8")) %>%
+  mutate(CHR = str_replace(CHR, "NC_035788.1", "9")) %>% 
+  mutate(CHR = str_replace(CHR, "NC_035789.1", "10"))  -> mydf
+mydf$CHR <- as.numeric(mydf$CHR)  
+
+m2.cnv <-ggman(mydf,chrom="CHR",bp="BIN_START",pvalue="MASK_VST",snp="SNP",logTransform=FALSE,sigLine=NA, ymax=1, relative.positions = TRUE)
+
+dfm <- m2.cnv[[1]]
+dfm$chrom_alt <- factor(dfm$chrom_alt, levels=c(0,1))
+
+dfmsplit <- split(dfm, dfm$chrom)
+xbreaks <- sapply(dfmsplit,function(x) {
+    midpoint <- length(x$index)/2
+    if(midpoint <1) midpoint <- 1
+    return(x$index[midpoint])
+})
+
+pal = wes_palette("Zissou1", 10, type = "continuous")
+
+m2.cnv.total <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt)))+
+  geom_point(size=0.5, aes(alpha=0.33))+  
+  scale_x_continuous(breaks = xbreaks, labels = names(xbreaks),expand = c(0,0),limits = c(0,max(dfm$index)+10)) +
+  guides(colour = FALSE,alpha=FALSE) +
+  scale_y_continuous(expand = c(0,0),limits=c(min(dfm$marker),1))+
+  #scale_alpha_continuous(range=c(0.1,0.95))+
+  #labs(x = "Chromosome") +
+  #ggtitle("Masked") +
+  theme_classic()+
+  labs(y="*V<sub>ST</sub>*") +theme(axis.title.y = element_markdown())+ 
+  #ylab(*bquote(V[ST])*)+
+  #theme(axis.title.y = element_text(face = "italic"))+
+  scale_color_manual(values=c(pal[1], pal[3])) 
+
+
+
+
+
+
+#ylab(expression(paste("C", H[4], " (", mu,"mol ", L^-1,")"))) +
+
+mydf.sig <- mydf[mydf$MASK_VST>quantile(mydf$MASK_VST, 0.995,na.rm=TRUE) ,]
+mydf.sig$snp <- mydf.sig$SNP
+dfm.sub <- merge(dfm,mydf.sig, by = "snp")
+
+nrow(mydf.sig)
+
+m2.cnv <-m2.cnv.total+geom_point(data=dfm.sub,shape = 17,alpha=1,size=1.5)
+
+```
+
+```{r}
+gp.popmap <-setNames(data.frame(matrix(ncol = 2, nrow = length(popmap.ni$POP))), c("ind", "pop"))
+gp.popmap$ind <- popmap.ni$IND
+gp.popmap$pop <- popmap.ni$POP
+
+target <- c("CL", "SL", "OBOYS","LOLA","DEBY","HC-VA","CLP","CS","HC","NEH","UMFS","SM","HI")
+target <- rev(target)
+gp.popmap <-gp.popmap %>% arrange(factor(pop, levels = target))
+
+max_cn <-mask_cn[which(mask_cn$VST > quantile(mask_cn$VST,c(0.995),na.rm=TRUE)),]
+max_cn %>% 
+  mutate(V1 = str_replace(V1, "NC_035780.1", "1")) %>% 
+  mutate(V1 = str_replace(V1, "NC_035781.1", "2")) %>% 
+  mutate(V1 = str_replace(V1, "NC_035782.1", "3")) %>% 
+  mutate(V1 = str_replace(V1, "NC_035783.1", "4")) %>% 
+  mutate(V1 = str_replace(V1, "NC_035784.1", "5")) %>% 
+  mutate(V1 = str_replace(V1, "NC_035785.1", "6")) %>% 
+  mutate(V1 = str_replace(V1, "NC_035786.1", "7")) %>% 
+  mutate(V1 = str_replace(V1, "NC_035787.1", "8")) %>%
+  mutate(V1 = str_replace(V1, "NC_035788.1", "9")) %>% 
+  mutate(V1 = str_replace(V1, "NC_035789.1", "10")) -> max_cn
+max_cnvs <- paste(max_cn$V1,max_cn$V2,sep="_")
+max_cnv_df <- t(max_cn[,4:93])
+rownames(max_cnv_df) <- popmap$IND
+colnames(max_cnv_df) <- max_cnvs
+max_cnv_df <- max_cnv_df[c(1:36,40:45,51:56,57:62,67:90),]
+max_cnv_df <- as.data.frame(max_cnv_df)
+
+
+max_cnv_df <-max_cnv_df %>% dplyr::arrange(factor(row.names(max_cnv_df), levels = gp.popmap$ind))
+
+melted_mask_cnv_df <- reshape2::melt(as.matrix(max_cnv_df))
+colnames(melted_mask_cnv_df)<- c("IND","LOC","CN")
+cnv.loc <-str_split(melted_mask_cnv_df$LOC,"_", simplify = TRUE)
+melted_mask_cnv_df$CHR <- cnv.loc[,1]
+melted_mask_cnv_df$BP <- cnv.loc[,2]
+melted_mask_cnv_df$CHR <- factor(melted_mask_cnv_df$CHR, levels= c(1,2,3,4,5,6,7,8,9,10))
+
+cnv.plot <- ggplot(melted_mask_cnv_df) + geom_tile(aes(x=LOC,y=IND,fill=CN)) + 
+  scale_y_discrete(limits = rev(levels(as.factor(melted_mask_cnv_df$IND)))) + 
+  scale_fill_gradientn(colours=pal)+
+   facet_grid(~ CHR, switch = "x", scales = "free_x", space = "free_x") +
+  scale_x_discrete(expand= c(0,0))+
+  theme_bw()+
+  theme(axis.title.x=element_blank(),axis.text.x=element_blank(),axis.ticks.x=element_blank(),axis.title.y=element_blank(),axis.text.y=element_blank()) 
+  #guides(fill= guide_legend(order=1))
+
+
+dfx <- min(ggplot_build(cnv.plot)$data[[1]]$x) 
+dfmax <- max(ggplot_build(cnv.plot)$data[[1]]$x)
+
+ddelta <- (dfmax-dfx)/50
+dfx <- dfx -ddelta
+
+new_df <- data.frame(matrix(ncol=1,nrow=78, dimnames=list(NULL, c("IND"))))
+new_df$IND <- gp.popmap$ind
+new_df <- join(new_df, popmap.ni)
+new_df$Y <- 78:1
+new_df$X <- rep(c(dfx-0,dfx-ddelta/2,dfx-ddelta,dfx-ddelta,dfx-ddelta/2,dfx-0),13)
+
+lab.plot <- ggplot()+ geom_point(data=new_df,aes(x=X,y=Y,shape=Type, color=POP, size=Type)) + 
+  scale_x_continuous(expand = c(0, 0), limits = c(min(new_df$X -0.05), max(new_df$X +.05)) )+ 
+  scale_y_continuous(expand = c(0, 0), limits = c(min(new_df$Y -0.5), max(new_df$Y +0.5)) )+ 
+  scale_color_manual(values=p_noinbred , name="Population/Line", guide="none") +
+  theme_void() +
+theme(legend.text = element_text(size=12),legend.position = "right", legend.title=element_text(size=14),axis.text.y = element_blank(),axis.title.y = element_blank(), axis.ticks.y=element_blank())+
+scale_shape_manual(values=c(18,16),name="Origin", guide="none") +
+scale_size_manual(values=c(3.5,3),name="Origin", guide="none") 
+
+
+```
+
+
+```{r}
+max_cn %>% 
+  mutate(V1 = str_replace(V1,  "^10$", "NC_035789.1")) %>% 
+  mutate(V1 = str_replace(V1,  "^2$", "NC_035781.1")) %>% 
+  mutate(V1 = str_replace(V1,  "^3$", "NC_035782.1")) %>% 
+  mutate(V1 = str_replace(V1,  "^4$", "NC_035783.1")) %>% 
+  mutate(V1 = str_replace(V1,  "^5$", "NC_035784.1")) %>% 
+  mutate(V1 = str_replace(V1,  "^6$", "NC_035785.1")) %>% 
+  mutate(V1 = str_replace(V1,  "^7$", "NC_035786.1")) %>% 
+  mutate(V1 = str_replace(V1,  "^8$", "NC_035787.1")) %>%
+  mutate(V1 = str_replace(V1,  "^9$", "NC_035788.1")) %>% 
+  mutate(V1 = str_replace(V1,  "^1$", "NC_035780.1"))  -> max_cnvw
+write(paste(max_cnvw$V1,max_cnvw$V2,max_cnvw$V3, sep= "\t"),"./Population_Genomics/Intermediate_Files/masked_full_outlier_vst.loci")
+
+summary(max_cn$VST)
+std.error(max_cn$VST)
+```
+
+```{bash}
+grep -f <(cut -f 3 ./Population_Genomics/Intermediate_Files/masked_full_outlier_vst.loci) ./Population_Genomics/delly.cnv.masked.bed > ./Population_Genomics/Output/Outliers/outlier.cnv.bed 
+```
+
+#### CNV PCA
+
+```{r}
+pca2 <- dudi.pca(mask_gen.niw,scannf=FALSE,scale=FALSE,nf=4)
+#pca3 <- dudi.pca(mask_gen.wild,scannf=FALSE,scale=FALSE,nf=4)
+pca4 <- dudi.pca(mask_gen.wildAE,scannf=FALSE,scale=FALSE,nf=4)
+
+out.cnvs <- apply(max_cn[,1:3],1,paste,collapse="_")
+out.cnvs <- str_replace_all(out.cnvs, fixed(" "), "")
+mask_gen.niw.outlier <- mask_gen.niw[loc=out.cnvs]
+
+pca2_o <- dudi.pca(mask_gen.niw.outlier,scannf=FALSE,scale=FALSE,nf=4)
+```
+
+```{r}
+dffcnv <- as.data.frame(pca2$li[,1:4])
+colnames(dffcnv) <- c("PC1","PC2","PC3","PC4")
+dffcnv$POP <- popmap.ni$POP
+dffcnv$Type <- popmap.ni$Type
+
+dffcnv.o <- as.data.frame(pca2_o$li[,1:4])
+colnames(dffcnv.o) <- c("PC1","PC2","PC3","PC4")
+dffcnv.o$POP <- popmap.ni$POP
+dffcnv.o$Type <- popmap.ni$Type
+```
+
+
+```{r}
+png(filename=paste(prefix.OE,"PCA.CNV.allpops.1.2.png", sep=""), type="cairo",units="px", width=3500, height=3500, res=200, bg="transparent")
+pca_cnv <- ggplot(data = dffcnv,aes( x=PC1, y=PC2,color=POP,fill=POP,shape=Type, size=3, alpha=0.95)) +
+geom_point(alpha=0.95, size = 6)+
+scale_shape_manual(values=c(23,21),name="Origin") +
+scale_fill_manual(values=p_noinbred, name="Population/Line") + scale_color_manual(values=p_noinbred , name="Population/Line") + 
+  #ggtitle("CNV PCA of all non-inbred Populaitons/Lines") + 
+guides(fill = guide_legend(override.aes = list(size =6, shape = c(21,21,23,23,21,21,23,21,21,23,21,21,23),alpha = 0.95)), alpha=FALSE,size=FALSE , shape= guide_legend(override.aes = list(size =6)))+ 
+geom_dl(alpha=1,method = list(cex = 2, font=2,"smart.grid"), aes(label=POP))+
+theme_bw() + theme(text = element_text(size=20))
+
+pca_cnv
+
+dev.off()
+
+
+pca_cnv <- ggplot(data = dffcnv,aes( x=PC1, y=PC2,color=POP,fill=POP,shape=Type, size=3, alpha=0.95)) +
+geom_point(alpha=0.95, size = 5)+
+scale_shape_manual(values=c(23,21),name="Origin") +
+scale_fill_manual(values=p_noinbred, name="Population/Line") + scale_color_manual(values=p_noinbred , name="Population/Line") + 
+  #ggtitle("CNV PCA of all non-inbred Populaitons/Lines") + 
+guides(fill = guide_legend(override.aes = list(size =4, shape = c(21,21,23,23,21,21,23,21,21,23,21,21,23),alpha = 0.95)), alpha="none",size="none" , shape= guide_legend(override.aes = list(size =4), order=2))+ 
+geom_dl(alpha=1,method = list(cex = 1, font=2,"smart.grid"), aes(label=POP))+
+theme_bw() + theme(text = element_text(size=12))
+
+pca_cnv_o <- ggplot(data = dffcnv.o,aes( x=PC1, y=PC2,color=POP,fill=POP,shape=Type, size=3, alpha=0.95)) +
+geom_point(alpha=0.95, size = 5)+
+scale_shape_manual(values=c(23,21),name="Origin", ) +
+scale_fill_manual(values=p_noinbred, name="Population/Line") + scale_color_manual(values=p_noinbred , name="Population/Line") + 
+  #ggtitle("CNV PCA of all non-inbred Populaitons/Lines") + 
+guides(fill = "none", alpha="none",size="none" , shape= "none", color="none")+ 
+geom_dl(alpha=1,method = list(cex = 1, font=2,"smart.grid"), aes(label=POP))+
+theme_bw() + theme(text = element_text(size=12))
+
+
+
+
+
+
+pcag7 <- ggplot(pca4$li, aes(x=Axis1,y=Axis2,color=popmap.wildAE$POP,fill=popmap.wildAE$POP,shape=popmap.wildAE$Type, size=3, alpha=0.95)) +   geom_point()+
+scale_fill_manual(values=p_wildAE, name="Population/Line") + scale_color_manual(values=p_wildAE, name="Population/Line") +guides(size=FALSE, alpha=FALSE)+ggtitle("PCA of Atlantic wild Populaitons")+ labs(x="PC1", y="PC2")+theme_bw() + theme(text = element_text(size=20))
+
+pcag8 <- ggplot(pca4$li, aes(x=Axis3,y=Axis4,color=popmap.wildAE$POP,fill=popmap.wildAE$POP,shape=popmap.wildAE$Type, size=3, alpha=0.95)) +  geom_point()+
+scale_fill_manual(values=p_wildAE, name="Population/Line") + scale_color_manual(values=p_wildAE, name="Population/Line") +guides(size=FALSE, alpha=FALSE)+ggtitle("PCA of Atlantic wild Populaitons")+
+labs(x="PC3", y="PC4")+theme_bw() + theme(text = element_text(size=20))
+
+
+png(filename=paste(prefix.OE,"CNV.PCA.wildAE.1.2.png", sep=""), type="cairo",units="px", width=2500, height=2500, res=200, bg="transparent")
+pcag7
+dev.off()
+
+png(filename=paste(prefix.OE,"CNV.PCA.wildAE.3.4.png", sep=""), type="cairo",units="px", width=2500, height=2500, res=200, bg="transparent")
+pcag8
+dev.off()
+```
+
+```{r}
+layout <- "ABBBBBBBBBBBBBBBBBBBBBB"
+s_p <- lab.plot + cnv.plot +plot_layout(design=layout, guides = "collect")
+
+
+png(filename=paste(prefix.OFS,"Figure.S11.CNV_Divergence.png", sep=""), type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
+layout <- "AAAAAAAAAAAAAAAAAAAAAAADDDDDDDDDFFF
+           AAAAAAAAAAAAAAAAAAAAAAADDDDDDDDDFFF
+           BCCCCCCCCCCCCCCCCCCCCCCEEEEEEEEEFFF
+           BCCCCCCCCCCCCCCCCCCCCCCEEEEEEEEEFFF
+           BCCCCCCCCCCCCCCCCCCCCCCEEEEEEEEEFFF
+           BCCCCCCCCCCCCCCCCCCCCCCGGGGGGGGGFFF
+           BCCCCCCCCCCCCCCCCCCCCCCGGGGGGGGGFFF
+           BCCCCCCCCCCCCCCCCCCCCCCGGGGGGGGGFFF"
+
+layout <- "AAAAAAAAAAAAAAAAAAAAAAACCCCCCCCCEEE
+           AAAAAAAAAAAAAAAAAAAAAAACCCCCCCCCEEE
+           BBBBBBBBBBBBBBBBBBBBBBBDDDDDDDDDEEE
+           BBBBBBBBBBBBBBBBBBBBBBBDDDDDDDDDEEE
+           BBBBBBBBBBBBBBBBBBBBBBBDDDDDDDDDEEE
+           BBBBBBBBBBBBBBBBBBBBBBBFFFFFFFFFEEE
+           BBBBBBBBBBBBBBBBBBBBBBBFFFFFFFFFEEE
+           BBBBBBBBBBBBBBBBBBBBBBBFFFFFFFFFEEE"
+
+
+p3 <- m2.cnv + wrap_elements(full = s_p) +  finished_mapnolm_small + pca_cnv +guide_area() + pca_cnv_o +plot_layout(design=layout, guides = "collect") 
+p3 + plot_annotation(tag_levels = 'A')
+dev.off()
+```
