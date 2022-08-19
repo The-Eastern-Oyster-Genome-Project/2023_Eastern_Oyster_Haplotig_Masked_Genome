@@ -7,6 +7,7 @@ output: github_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(dev="CairoPNG")
 ```
 
 ## Initial Setup
@@ -22,40 +23,17 @@ cd 2021_Genome_Submissions
 cd Haplotig_Masking
 ```
 
-Download original genome
+## Download original genome and gaps file
 
 ```{bash eval = FALSE, include=FALSE}
 wget https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/002/022/765/GCF_002022765.2_C_virginica-3.0/GCF_002022765.2_C_virginica-3.0_genomic.fna.gz
-mv GCF_002022765.2_C_virginica-3.0_genomic.fna.gz reference.fasta.gz
-gunzip reference.fasta.gz
-
-```
-
-```{bash}
-conda install seqkit
-conda install delly
-conda install dicey
-```
-
-
-```{bash eval = FALSE, include=FALSE}
-
+gunzip GCF_002022765.2_C_virginica-3.0_genomic.fna.gz reference.fasta.gz
 
 wget https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/002/022/765/GCF_002022765.2_C_virginica-3.0/GCF_002022765.2_C_virginica-3.0_genomic_gaps.txt.gz
-
 gunzip GCF_002022765.2_C_virginica-3.0_genomic_gaps.txt.gz
-
-mawk '{new=$2-1;print $1 "\t" new "\t" $3}' GCF_002022765.2_C_virginica-3.0_genomic_gaps.txt | mawk '!/#/' > gaps.bed
-
-samtools faidx reference.fasta
-mawk -v OFS='\t' {'print $1,$2'} reference.fasta.fai > genome.file
-mawk '{print $1 "\t" "0" "\t" $2-1}' genome.file > genome.bed
-bedtools subtract -b gaps.bed -a genome.bed > contigs.bed
-
-
 ```
 
-##Download raw Illumina files used for genome assembly
+## Download raw Illumina files used for genome assembly
 
 **Note, you must have [SRA-Toolkit](https://github.com/ncbi/sra-tools/wiki/02.-Installing-SRA-Toolkit) installed properly on your system for this to work.
 
@@ -65,21 +43,191 @@ mv SRR6159074_1.fastq GI_01.F.fq
 mv SRR6159074_2.fastq GI_01.R.fq
 gzip *.fq
 ```
-## Masking
+
 
 ### Create computing environment
 ```{bash eval = FALSE, include=FALSE}
-conda create -n HMASK ddocent=2.6.0 picard=2.18.2 purge_haplotigs=1.1.1 minimap2=2.17 assembly-stats seqkit
+conda create --name purge_haps --file ../other_files/purge_haps.txt
+conda create --name HMASK --file ../other_files/hmask.txt
 ```
+
+
+### Create contigs from the assembly
+```{bash}
+source activate HMASK
+sed 's/NC_035789.1/NC_035779.1/' GCF_002022765.2_C_virginica-3.0_genomic.fna | seqkit sort -N - -w0 | seqkit seq -u -w 0 | sed 's/NC_035779.1/NC_035789.1/' > reference.fasta
+
+
+mawk '{new=$2-1;print $1 "\t" new "\t" $3}' GCF_002022765.2_C_virginica-3.0_genomic_gaps.txt | mawk '!/#/' > gaps.bed
+
+samtools faidx reference.fasta
+mawk -v OFS='\t' {'print $1,$2'} reference.fasta.fai > genome.file
+mawk '{print $1 "\t" "0" "\t" $2-1}' genome.file > genome.bed
+bedtools subtract -b gaps.bed -a genome.bed > contigs.bed
+bedtools getfasta -fi reference.fasta -bed contigs.bed | sed 's/-/./g' | sed 's/:/./g ' > contigs.fasta
+
+
+```
+
+
+## Masking
 
 ```{bash}
 conda activate HMASK
 rm reference.fasta.fai
 ./dDocent_ngs.sh dDocent.config
 
-cat namelist | parallel -j 8 "picard MarkDuplicates I={}-RG.bam O={}-RGmd.bam M={}_dup_metrics.txt OPTICAL_DUPLICATE_PIXEL_DISTANCE=2500 TAGGING_POLICY=OpticalOnly &> md.{}.log"
+picard MarkDuplicates I=GI_01-RG.bam O=GI_01-RGmd.bam M=GI_01_dup_metrics.txt OPTICAL_DUPLICATE_PIXEL_DISTANCE=2500 TAGGING_POLICY=OpticalOnly &> md.GI_01.log
 samtools view -h -@32 -F 0x400 -F 0x100 GI_01-RGmd.bam | mawk '$5 <1' |samtools view -@32 - -SbT reference.fasta > GI_01.multmappers.bam
 samtools view -@32 -h -q10 -F 0x400 -F 0x100 GI_01-RGmd.bam | mawk '$6 !~/[8-9].[SH]/ && $6 !~ /[1-9][0-9].[SH]/' | samtools view -@32 - -SbT reference.fasta > GI_01-RG.F.bam
 samtools view -@32 -bF 0x400 -F 0x100 GI_01-RGmd.bam > GI_01-RGnd.bam
 
+```
+
+```{bash}
+source activate HMASK
+mawk -v OFS='\t' {'print $1,$2'} reference.fasta.fai > genome.file
+bedtools makewindows -g genome.file -w 10000 | mawk '!/NC_007175.2/' > 10kb.bed
+bedtools coverage -a 10kb.bed -b GI_01.multmappers.bam -mean -sorted -g genome.file > GI.10kb.multi.cov.bed &
+bedtools coverage -a 10kb.bed -b GI_01-RGnd.bam -mean -sorted -g genome.file > GI.10kb.cov.bed &
+bedtools coverage -a 10kb.bed -b GI_01-RG.F.bam -mean -sorted -g genome.file > GI.10kb.fil.cov.bed
+```
+
+```{bash}
+#cat <(echo -e "chrom \t start \t end \t counts \t dataset") <(mawk '{print $1 "\t" $2 "\t" $3 "\t" $4 "\tFiltered"}' GI.10kb.fil.cov.bed ) <(mawk '{print $0 "\tMulti"}' GI.10kb.multi.cov.bed ) <(mawk '{print $0 "\tTotal"}' GI.10kb.cov.bed ) > original.coverage.bed
+
+cat <(echo -e "chrom \t start \t end \t Filtered" ) GI.10kb.fil.cov.bed > GI.10kb.fil.cov.txt
+```
+
+
+```{r}
+
+o.cov.df <- read.table("GI.10kb.fil.cov.txt", header=TRUE)
+
+#png(filename="FilteredCoverageCOM.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
+ggplot(o.cov.df[which(o.cov.df$Filtered > 1 & o.cov.df$Filtered < 100 ),]) +
+  geom_histogram(aes(x=Filtered), binwidth = 0.25,size=0.025, position="identity", alpha= 0.75)+
+  xlab("Filtered Read Coverage")+
+  scale_x_continuous(breaks=c(0,10,20,30,40,50,60,70,80,90,100)) +
+  scale_y_continuous(expand = c(0,0))+
+  geom_vline(xintercept = 40, linetype="dashed")+
+  theme_classic()
+#dev.off()
+```
+
+
+
+```{bash}
+source activate purge_haps
+samtools faidx contigs.fasta
+minimap2 -t 64 -ax sr contigs.fasta GI_01.R1.fq.gz GI_01.R2.fq.gz --secondary=no | samtools sort -m 10G -o aligned.contigs.bam -T tmp.ali
+mawk -v OFS='\t' {'print $1,$2'} contigs.fasta.fai > genome.file
+bedtools makewindows -g genome.file -w 100000 -s 50000 > 100kb.50kboverlap.bed
+bedtools coverage -a 100kb.50kboverlap.bed -b aligned.contigs.bam -mean -sorted -g genome.file > GI.100kb.fil.cov.bed
+mawk '$4 >= 40' GI.100kb.fil.cov.bed | bedtools merge -i - > high.cov.bed
+mawk '$4 <= 40' GI.100kb.fil.cov.bed | bedtools merge -i - > low.cov.bed
+mawk '{print $0 "\t" $3 -$2}' high.cov.bed | mawk '$4 < 150000' |cut -f1-3 > small.high.bed
+mawk '{print $0 "\t" $3 -$2}' low.cov.bed | mawk '$4 < 150000' | cut -f1-3 > small.low.bed
+cat high.cov.bed small.low.bed | sort -k1,1 -k2,2n > high.2.bed
+bedtools merge -i high.2.bed > high.merged.2.bed
+cat low.cov.bed small.high.bed | sort -k1,1 -k2,2n > low.2.bed
+bedtools merge -i low.2.bed > low.merged.2.bed
+bedtools subtract -a low.merged.2.bed -b high.merged.2.bed > low.merg.sub.bed
+bedtools getfasta -fi contigs.fasta -bed high.merged.2.bed > high.fasta
+bedtools getfasta -fi contigs.fasta -bed low.merg.sub.bed > low.fasta
+cat low.fasta high.fasta | sed 's/-/./g' | sed 's/:/./g ' > manual.fasta
+samtools faidx manual.fasta
+
+```
+
+```{bash}
+source activate purge_haps
+minimap2 -t 64 -ax sr manual.fasta GI_01.R1.fq.gz GI_01.R2.fq.gz --secondary=no | samtools sort -m 10G -o aligned.bam -T tmp.ali
+purge_haplotigs hist -b aligned.bam -g manual.fasta -t 64
+
+```
+
+Output figure from `purge_haplotigs`
+![purge_haplotigs histogram](./aligned.bam.histogram.png)
+
+
+```{bash}
+source activate purge_haps
+purge_haplotigs cov -i aligned.bam.gencov -l 10 -m 56 -h 120
+```
+
+#### Important note on reproducibility
+The `purge_haplotigs` program is designed to run on **de novo** assemblies, and it assumes that most contigs are different lengths.  Several steps of the program involve sorting the output of parallel computational threads, and it does this not by conting name, but by length.  
+
+For this application, several contigs (that were possible chimeras) are of similar length.  Six contigs in particular (identified below) have high similarity and identical length, meaning that depending on the run, one in the pair would be marked the haplotig and the other would be marked to keep.  The results of these differences are minor and only involve with the placement of the haplotig masking.  To ensure full reproducibility, we alter one input file to secure consistent haplotig marking.  However, users are encouraged to explore multiple runs to see the exact difference.
+
+Similar contigs in identity and length:
+```
+NC_035780.1.56494315.57556734.950000.1050000
+NC_035780.1.57597004.58436490.0.100000
+NC_035782.1.0.2889749.2650000.2750000
+NC_035782.1.5430213.7093902.750000.850000
+NC_035786.1.27961299.30492941.1700000.1850000
+NC_035786.1.31893473.34284637.400000.550000
+```
+
+Here we alter the coverage_stats.csv file to ensure the same contigs are kept each time:
+
+```{bash}
+sed -i 's/NC_035786.1.27961299.30492941.1700000.1850000,s,/NC_035786.1.27961299.30492941.1700000.1850000,,/g' coverage_stats.csv
+sed -i 's/NC_035782.1.5430213.7093902.750000.850000,s,/NC_035782.1.5430213.7093902.750000.850000,,/g' coverage_stats.csv
+sed -i 's/NC_035780.1.56494315.57556734.950000.1050000,s,/NC_035780.1.56494315.57556734.950000.1050000,,/g' coverage_stats.csv
+```
+
+Also, making this modification causes a contig to be marked a repeat, so we alter that as well to ensure reproducibility across runs
+
+```{bash}
+sed -i 's/NC_035782.1.0.2889749.2750000.2889749,s,/NC_035782.1.0.2889749.2750000.2889749,,/g' coverage_stats.csv  
+```
+
+
+```{bash}
+source activate purge_haps
+purge_haplotigs purge -a 70 -g manual.fasta -c coverage_stats.csv -t 48 -d -b aligned.bam -o curated_contigs
+```
+
+#### Important note on reproducibility
+Again, the `purge_haplotigs` program is designed to run on **de novo** assemblies, and it assumes that most contigs are different lengths. Several steps of the program involve sorting the output of parallel computational threads, and it does this not by conting name but by length.  
+
+Because several contigs are the same length in this application, we need to force a particular order for reproducibility
+
+The `mask.ids` file in the `./other_files` directory included in the rep contains the order of our original analysis.  The code below sorts the outputed fasta file to match that order.
+
+```{bash}
+join -1 2 -2 1 -o "1.1 1.2 2.2" <(sort -k2 ../other_files/mask.ids) <(seqkit fx2tab curated_contigs.fasta | sort -k1) | sort -k1n | mawk '{print $2 "\t" $3}' | mawk '{print ">"$1"\n"$2}' > curated_contigs.fasta.sorted
+mv curated_contigs.fasta.sorted curated_contigs.fasta
+
+```
+
+
+
+```{bash}
+source activate purge_haps
+purge_haplotigs clip -p curated_contigs.fasta -h curated_contigs.haplotigs.fasta -t 48
+
+cat clip.haplotigs.fasta curated_contigs.artefacts.fasta | mawk '!/ATGTTTTCTCAAGGATTCAAGAATTTTCTGTTAAGAATTTTTCCCATTCGCGGGTTTATCC/' | mawk '!/NC_007175.2/' > total.haplotigs.fasta
+minimap2 -ax asm5 reference.fasta total.haplotigs.fasta -t 16 --secondary=no |  samtools sort -@ 16 -m 5G -o haplotigs.bam
+bedtools bamtobed -i haplotigs.bam | bedtools merge -i - | mawk '{print $1 "\t" $2 "\t" $3 "\t0\thaplotig"}' > haplotigs.bed
+bedtools maskfasta -fi reference.fasta -bed haplotigs.bed -fo reference.masked.fasta
+```
+
+
+
+
+```{bash}
+source activate purge_haps
+minimap2 -ax asm5 reference.fasta clip.fasta -t 16 --secondary=no |  samtools sort -@ 16 -m 5G -o primary.bam
+bedtools bamtobed -i primary.bam | bedtools merge -i - | mawk '{print $1 "\t" $2 "\t" $3 "\t0\tprimary"}' > primary.bed
+cat haplotigs.bed primary.bed > contigs.marked.bed
+cat <(echo -e "chrom \t start \t end \t counts \t dataset") contigs.marked.bed > contigs2.marked.bed
+mv contigs2.marked.bed contigs.marked.bed
+
+mawk '{print $1 "\t" $2 "\t" $3 "\t0\tOriginal"}' contigs.bed >contigs.original.bed
+cat contigs.marked.bed contigs.original.bed > contigs2.marked.bed
+mv contigs2.marked.bed contigs.marked.bed
 ```
