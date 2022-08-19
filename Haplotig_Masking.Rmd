@@ -14,12 +14,11 @@ knitr::opts_chunk$set(dev="CairoPNG")
 
 Clone Repo
 ```{bash eval = FALSE, include=FALSE}
-git clone https://github.com/The-Eastern-Oyster-Genome-Project/2021_Genome_Submissions.git
+git clone https://github.com/The-Eastern-Oyster-Genome-Project/Haplotig_Masking.git
 ```
 
 Change into repo directory
 ```{bash eval = FALSE, include=FALSE}
-cd 2021_Genome_Submissions
 cd Haplotig_Masking
 ```
 
@@ -47,8 +46,8 @@ gzip *.fq
 
 ### Create computing environment
 ```{bash eval = FALSE, include=FALSE}
-conda create --name purge_haps --file ../other_files/purge_haps.txt
-conda create --name HMASK --file ../other_files/hmask.txt
+conda create --name purge_haps --file ./other_files/purge_haps.txt
+conda create --name HMASK --file ./other_files/hmask.txt
 ```
 
 
@@ -199,7 +198,7 @@ Because several contigs are the same length in this application, we need to forc
 The `mask.ids` file in the `./other_files` directory included in the rep contains the order of our original analysis.  The code below sorts the outputed fasta file to match that order.
 
 ```{bash}
-join -1 2 -2 1 -o "1.1 1.2 2.2" <(sort -k2 ../other_files/mask.ids) <(seqkit fx2tab curated_contigs.fasta | sort -k1) | sort -k1n | mawk '{print $2 "\t" $3}' | mawk '{print ">"$1"\n"$2}' > curated_contigs.fasta.sorted
+join -1 2 -2 1 -o "1.1 1.2 2.2" <(sort -k2 ./other_files/mask.ids) <(seqkit fx2tab curated_contigs.fasta | sort -k1) | sort -k1n | mawk '{print $2 "\t" $3}' | mawk '{print ">"$1"\n"$2}' > curated_contigs.fasta.sorted
 mv curated_contigs.fasta.sorted curated_contigs.fasta
 
 ```
