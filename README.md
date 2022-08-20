@@ -14,3 +14,7 @@ Folders above have different aspects of the analysis:
 
 
 [Direct link to GZIPPED FASTA file of the Haplotig-masked genome](./Haplotig_Masking/Output/Masked_Genome/reference.masked.fasta.gz)
+
+Or simply retrieve with `wget`:
+
+`wget https://github.com/The-Eastern-Oyster-Genome-Project/2022_Eastern_Oyster_Haplotig_Masked_Genome/raw/main/Haplotig_Masking/Output/Masked_Genome/reference.masked.fasta.gz`
