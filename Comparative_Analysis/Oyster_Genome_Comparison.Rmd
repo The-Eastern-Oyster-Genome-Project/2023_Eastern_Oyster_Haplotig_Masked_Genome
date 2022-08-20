@@ -9,12 +9,12 @@ output: github_document
 ## Initial Setup
 
 Clone Repo
-```{bash eval = FALSE, include=FALSE}
+```{bash eval = FALSE}
 git clone https://github.com/The-Eastern-Oyster-Genome-Project/2022_Eastern_Oyster_Haplotig_Masked_Genome.git
 ```
 
 Change into repo directory
-```{bash eval = FALSE, include=FALSE}
+```{bash eval = FALSE}
 cd 2022_Eastern_Oyster_Haplotig_Masked_Genome
 mkdir Masked
 mkdir Original
@@ -23,7 +23,7 @@ cd Original
 
 Download original genome
 
-```{bash eval = FALSE, include=FALSE}
+```{bash eval = FALSE}
 wget https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/002/022/765/GCF_002022765.2_C_virginica-3.0/GCF_002022765.2_C_virginica-3.0_genomic.fna.gz
 gunzip GCF_002022765.2_C_virginica-3.0_genomic.fna.gz 
 
@@ -32,28 +32,64 @@ cd ../Masked
 ```
 
 Download the masked genome
-```{bash eval = FALSE, include=FALSE}
-wget https://github.com/The-Eastern-Oyster-Genome-Project/2021_Genome_Submissions/raw/main/Haplotig_Masking/Output/Masked_Genome/reference.masked.fasta
-mv reference.masked.fasta reference.fasta
+```{bash eval = FALSE}
+wget https://github.com/The-Eastern-Oyster-Genome-Project/2022_Eastern_Oyster_Haplotig_Masked_Genome/raw/main/Haplotig_Masking/Output/Masked_Genome/reference.masked.fasta.gz
+gunzip -c reference.masked.fasta.gz > reference.fasta
+cd ..
+```
+
+## BUSCO Evaluation
+
+Create Conda environment
+```{bash eval = FALSE}
+conda create --name busco --file ../other_files/busco_env.txt
+```
+
+Break reference genome into its original contigs
+```{bash eval=FALSE}
+cd Original
+wget https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/002/022/765/GCF_002022765.2_C_virginica-3.0/GCF_002022765.2_C_virginica-3.0_genomic_gaps.txt.gz
+gunzip GCF_002022765.2_C_virginica-3.0_genomic_gaps.txt.gz
+
+mawk '{new=$2-1;print $1 "\t" new "\t" $3}' GCF_002022765.2_C_virginica-3.0_genomic_gaps.txt | mawk '!/#/' > gaps.bed
+
+samtools faidx /reference.fasta
+mawk -v OFS='\t' {'print $1,$2'} reference.fasta.fai > genome.file
+mawk '{print $1 "\t" "0" "\t" $2-1}' genome.file > genome.bed
+bedtools subtract -b gaps.bed -a genome.bed > contigs.bed
+bedtools getfasta -fi reference.fasta -bed contigs.bed | sed 's/-/./g' | sed 's/:/./g ' > contigs.fasta
+cd ..
+```
+
+Download the primary contigs from the masked genome
+
+
+
+Run BUSCO
+```{bash}
+source activate busco
+busco -m genome -i ../Original/contigs.fasta -o original_contigs -l mollusca_odb10 --cpu 36
+busco -m genome -i ../Original/reference.fasta -o original_contigs -l mollusca_odb10 --cpu 36
+
 ```
 
 ## Run variant calling
 
 Run modified dDocent pipeline **but make sure to change nunber of processors to match your machine and your email address**
-```{bash eval = FALSE, include=FALSE}
+```{bash eval = FALSE}
 bash ../scripts/dDocent_ngs ../other_files/config
 ```
 
 Wait for code to finsh (will take a few days)
 
 ## Filter variant calls **Note** 40 is the number of processors
-```{bash eval = FALSE, include=FALSE}
+```{bash eval = FALSE}
 cd raw.vcf
 bash ../../../scripts/PVCF_filter.sh MASKED 40 
 ```
 
 ## Run and filter original 
-```{bash eval = FALSE, include=FALSE}
+```{bash eval = FALSE}
 cd ../Original
 bash ../scripts/dDocent_ngs ../other_files/config
 cd raw.vcf
@@ -64,7 +100,7 @@ bash ../../../scripts/PVCF_filter.sh ORIG 40
 
 ## Structural Variant Calling
 
-```{bash eval = FALSE, include=FALSE}
+```{bash eval = FALSE}
 
 cd Masked
 conda activate HMASK
@@ -124,7 +160,7 @@ cd ..
 
 ## Setup Analyses
 
-```{bash eval = FALSE, include=FALSE}
+```{bash eval = FALSE}
 mkdir Comp
 cd Comp
 ln -s ../Masked/raw.vcf/filtered/*.vcf.gz .
@@ -181,7 +217,7 @@ p_noinbred <- c("#FF7F00","#FDBF6F","#fda56f","#871a1a","#E31A1c","#FB9A99","#8a
 
 
 ### SNPS
-```{bash eval = FALSE, include=FALSE}
+```{bash eval = FALSE}
 ls *.vcf.gz | parallel "paste <(echo {}) <(bcftools stats --threads 12 {} | grep ^SN | cut -f3- | grep SNPs | cut -f2 -d ":")" > Output/SNP.list.table
 ```
 
@@ -190,19 +226,19 @@ column -t Output/SNP.list.table
 ```
 
 
-```{bash eval = FALSE, include=FALSE}
+```{bash eval = FALSE}
 bcftools query -f '%CHROM\t%POS\n' SNP.MASKED.TRSdp5g75.nDNA.g1.maf01.FIL.vcf.gz | mawk '{print $1 "\t" $2-1 "\t" $2}' > MASKED.SNP.MAF01.bed
 bcftools query -f '%CHROM\t%POS\n' SNP.ORIG.TRSdp5g75.nDNA.g1.maf01.FIL.vcf.gz | mawk '{print $1 "\t" $2-1 "\t" $2}' > ORIGINAL.SNP.MAF01.bed
 ```
 
-```{bash eval = FALSE, include=FALSE}
+```{bash eval = FALSE}
 bedtools intersect -b <(sort -k 1,1 -k2,2n ORIGINAL.SNP.MAF01.bed) -a <(sort -k 1,1 -k2,2n 10kb.bed) -c -sorted > ORIG.snps.maf01.per.10kb.bed
 bedtools intersect -b <(sort -k 1,1 -k2,2n  MASKED.SNP.MAF01.bed) -a <(sort -k 1,1 -k2,2n 10kb.bed) -c -sorted > MASKED.snps.maf01.per.10kb.bed
 ```
 
 
 
-```{bash eval = FALSE, include=FALSE}
+```{bash eval = FALSE}
 vcftools --gzvcf SNP.MASKED.TRSdp5g75.nDNA.g1.maf01.FIL.vcf.gz --diff-site-discordance --gzdiff SNP.ORIG.TRSdp5g75.nDNA.g1.maf01.FIL.vcf.gz --out maf01.concordance
 
 bedtools subtract -a MASKED.SNP.MAF01.bed -b ORIGINAL.SNP.MAF01.bed > masked.only.SNP.MAF01.bed
@@ -232,7 +268,7 @@ summary(mvo.con)
 
 
 ### Create New Diplotig Windows
-````{bash eval = FALSE, include=FALSE}
+````{bash eval = FALSE}
 cd Comp
 cut -f1,2 ../Masked/reference.fasta.fai > genome.file
 bedtools makewindows -g genome.file -w 10000 | mawk '!/NC_007175.2/' > 10kb.bed
@@ -246,7 +282,7 @@ bedtools merge -i new_diplotigs.bed > merged.diplotig.windows.bed
 
 
 ### PI
-```{bash eval = FALSE, include=FALSE}
+```{bash eval = FALSE}
 bcftools view --threads 40 -S ../other_files/no_inbred.pop SNP.MASKED.TRSdp5g75.nDNA.g1.maf01.FIL.vcf.gz | vcftools --vcf -  --window-pi 10000 --out masked.all.pi &
 bcftools view --threads 40 -S ../other_files/no_inbred.pop SNP.ORIG.TRSdp5g75.nDNA.g1.maf01.FIL.vcf.gz | vcftools --vcf -  --window-pi 10000 --out original.all.pi
 
@@ -569,7 +605,7 @@ dev.off()
 
 
 ### Heterozygosity Masked vs. Original
-```{bash eval = FALSE, include=FALSE}
+```{bash eval = FALSE}
 cd Comp
 bcftools index -f --threads 40 SNP.MASKED.TRSdp5g75.nDNA.g1.maf01.max2alleles.FIL.vcf.gz
 bcftools index -f --threads 40 SNP.ORIG.TRSdp5g75.nDNA.g1.maf01.max2alleles.FIL.vcf.gz
@@ -756,7 +792,7 @@ dev.off()
 
 
 ### Heterozygosity Masked vs. Original in Diplotigs
-```{bash eval = FALSE, include=FALSE}
+```{bash eval = FALSE}
 
 bedtools intersect -a <(mawk '!/CHRO/' total.all.per10kb.het ) -b new_diplotigs.bed -wa > total.all.d.het
 cat <(head -1 total.all.per10kb.het) total.all.d.het > total.diplo.hets
@@ -931,7 +967,7 @@ dev.off()
 ### Calculate FST
 
 #### OutFlank
-```{bash eval = FALSE, include=FALSE}
+```{bash eval = FALSE}
 
 bcftools view  --threads 40 -S ../other_files/filter.set SNP.ORIG.TRSdp5g75.nDNA.g1.maf05.max2alleles.FIL.vcf.gz |  bcftools +fill-tags| bcftools view -i 'F_MISSING==0 & MAF > 0.05'  -O z -o SNP.ORIGINAL.noinbred.TRSdp5g75.nDNA.g1.maf05.max2alleles.nomissing.FIL.vcf.gz
 
@@ -999,7 +1035,7 @@ write(paste(CHR.o.wae[attr(svd.o.wae, "subset")],
       "WildAELociLocationsAfterThinningOriginalPCs.txt")
 ```
 
-```{bash eval = FALSE, include=FALSE}
+```{bash eval = FALSE}
 
 cut -f1 NoInbredLociLocationsAfterThinning.maskedPCs.txt| uniq | parallel "grep {} NoInbredLociLocationsAfterThinning.maskedPCs.txt | shuf  2>/dev/null | shuf 2>/dev/null | shuf 2>/dev/null| head -5000" >> random.50k.masked.snps
 
@@ -1223,7 +1259,7 @@ withr::with_options(c(scipen = 10),write(paste(o.wae.plot.df$CHRR,o.wae.plot.df$
 
 ```
 
-```{bash eval = FALSE, include=FALSE}
+```{bash eval = FALSE}
 cd Comp
 bedtools intersect -b <(sort -k 1,1 -k2,2n Masked_NoInbred_FST_Outflank.bed) -a <(sort -k 1,1 -k2,2n 10kb.bed) -wa -wb -sorted  |bedtools merge -d -1 -c 7,8 -o mean,distinct | mawk '{ if ($0 ~ /TRUE/) {print $1 "\t" $2 "\t" $3 "\t" $4 "\tTRUE"} else {print $0}}' > masked.OF_fst.10kb.bed
 
@@ -1625,7 +1661,7 @@ dev.off()
 
 
 #### diplotig Fst
-```{bash eval = FALSE, include=FALSE}
+```{bash eval = FALSE}
 cd Comp
 bedtools intersect -a masked.OF_fst.10kb.bed -b new_diplotigs.bed -wa > masked.OF_fst.10kb.diplo.bed
 bedtools intersect -a original.OF_fst.10kb.bed -b new_diplotigs.bed -wa > original.OF_fst.10kb.diplo.bed
