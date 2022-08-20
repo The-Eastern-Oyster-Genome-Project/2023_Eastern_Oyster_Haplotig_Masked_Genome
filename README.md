@@ -8,6 +8,9 @@ Folders above have different aspects of the analysis:
 
 |Folder Name| Contents|
 |-----------|---------|
-|[Haplotig_Masking](/Haplotig_Masking)| Contains code and outputs for the haplotig detection and masking of NCBI Assemby C_virginica-3.0 (GCF_002022765.2)|
+|[Haplotig_Masking](/Haplotig_Masking)| Contains code and outputs for the haplotig detection and masking of NCBI Assemby [C_virginica-3.0](https://www.ncbi.nlm.nih.gov/assembly/GCF_002022765.2/) (GCF_002022765.2)|
 |[Comparative_Analysis](/Comparative_Analysis)| Contains code and outputs for the comparison of population genomic statistics from both genomes|
 
+
+
+[Direct link to GZIPPED FASTA file of the Haplotig-masked genome](./Haplotig_Masking/Output/Masked_Genome/reference.masked.fasta.gz)
