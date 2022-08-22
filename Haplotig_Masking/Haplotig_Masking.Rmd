@@ -94,9 +94,10 @@ bedtools coverage -a 10kb.bed -b GI_01-RG.F.bam -mean -sorted -g genome.file > G
 ```
 
 ```{bash}
-#cat <(echo -e "chrom \t start \t end \t counts \t dataset") <(mawk '{print $1 "\t" $2 "\t" $3 "\t" $4 "\tFiltered"}' GI.10kb.fil.cov.bed ) <(mawk '{print $0 "\tMulti"}' GI.10kb.multi.cov.bed ) <(mawk '{print $0 "\tTotal"}' GI.10kb.cov.bed ) > original.coverage.bed
+paste <(cut -f1,2,3,4 GI.10kb.cov.bed) <(cut -f4 GI.10kb.fil.cov.bed) <(cut -f4 GI.10kb.multi.cov.bed) > GI.original.bed
 
 cat <(echo -e "chrom \t start \t end \t Filtered" ) GI.10kb.fil.cov.bed > GI.10kb.fil.cov.txt
+cat <(echo -e "chrom \t start \t end \t counts \t dataset") <(mawk '{print $1 "\t" $2 "\t" $3 "\t" $4 "\tFiltered"}' GI.10kb.fil.cov.bed ) <(mawk '{print $0 "\tMulti"}' GI.10kb.multi.cov.bed ) <(mawk '{print $0 "\tTotal"}' GI.10kb.cov.bed ) > ../Comparative_Analysis/original.coverage.bed
 ```
 
 
@@ -139,6 +140,11 @@ cat low.fasta high.fasta | sed 's/-/./g' | sed 's/:/./g ' > manual.fasta
 samtools faidx manual.fasta
 
 ```
+
+```{bash}
+assembly-stats manual.fasta
+```
+
 
 ```{bash eval=FALSE}
 source activate purge_haps
