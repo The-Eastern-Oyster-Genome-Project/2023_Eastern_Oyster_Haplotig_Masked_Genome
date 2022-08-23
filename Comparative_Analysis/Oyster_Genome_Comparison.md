@@ -2114,7 +2114,7 @@ md4 <-md4+geom_point(data=dfm.sub2,shape = 25,alpha=1,size=3, aes(fill=as.factor
 #dev.off()
 ```
 
-#### Wild
+#### Wild AE
 
 ``` r
 fst.wildAE.dataframe<-read.table("total.wildae.OF.fsts", sep="\t", header=T)
