@@ -251,11 +251,6 @@ pops <- read.table("../other_files/population_coordinates.full.tab", header = TR
 popind <- read.table("../other_files/popmap", header=TRUE)
 
 popmap <-join(pops,popind,type = "inner")
-```
-
-    ## Joining by: POP
-
-``` r
 popmap <- popmap[order(popmap$IND),]
 popmap$Type <- factor(popmap$Type, levels=c("Inbred","Selected","Wild"))
 
@@ -3252,11 +3247,6 @@ pops <- read.table("../other_files/population_coordinates.full.tab", header = TR
 popind <- read.table("../other_files/popmap", header=TRUE)
 
 popmap <-join(pops,popind,type = "inner")
-```
-
-    ## Joining by: POP
-
-``` r
 popmap <- popmap[order(popmap$IND),]
 popmap$Type <- factor(popmap$Type, levels=c("Inbred","Selected","Wild"))
 popmap$POP <- factor(popmap$POP, levels=c("HI","SM","UMFS","NEH","NG", "HG","HC","CS","DEBY" ,"CLP","HC-VA","LOLA","CL","SL","OBOYS","LM"))

@@ -240,7 +240,7 @@ library(matrixStats)
 
 ### Setup
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 pops <- read.table("../other_files/population_coordinates.full.tab", header = TRUE)
 popind <- read.table("../other_files/popmap", header=TRUE)
 
@@ -302,7 +302,7 @@ cat <(echo -e "chrom\tstart\tend\tTotal\tFiltered\tMulti\tdataset") <(mawk '{pri
 
 
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 cbPalette1 <- c("#D55E00","#999999","#E69F00","#CC79A7","#009E73","#7d5577")
 graph.breaks <- c("Haplotig_Masked","Original")
 graph.labels <- c("Haplotig Masked", "Original")
@@ -464,13 +464,13 @@ cat <(head -1 maf01.concordance.diff.sites) <(mawk '$3 == "B"' maf01.concordance
 
 ```
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 countLines("MASKED.SNP.new_diplotigs.bed")
 countLines("ORIGINAL.SNP.new_diplotigs.bed")
 countLines("masked.only.new.SNPs.diplotigs.bed")
 ```
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 mvo.con <- read.table("MvO.concordance", sep="\t", header=T)
 
 summary(mvo.con)
@@ -493,13 +493,13 @@ mawk '!/CH/' masked.all.pi.windowed.pi | mawk '{print $1 "\t" $2-1 "\t" $3-1 "\t
 mawk '!/CH/' original.all.pi.windowed.pi | mawk '{print $1 "\t" $2-1 "\t" $3-1 "\t" $4 "\t" $5}' > original.pi.10kb.bed
 ```
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 pi.all.dataframe<-read.table("total.all.pi", sep="\t", header=T)
 summary(pi.all.dataframe)
 pi.all.dataframe$GROUP <- factor(pi.all.dataframe$GROUP, levels=c("MASKED", "ORIGINAL" ))
 ```
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 bd <-ggplot(pi.all.dataframe, aes(x=PI,y = reorder(GROUP, desc(GROUP))))+
   geom_violin(aes(color=GROUP,fill= GROUP)) +
   geom_boxplot(aes(fill=GROUP), width=0.1,outlier.shape = 23, outlier.color = "black")+
@@ -513,7 +513,7 @@ bd
 #dev.off()
 ```
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 pi.all.dataframe %>% t_test(formula = PI ~ GROUP, alternative = "two.sided",order = c("MASKED", "ORIGINAL"))
 
 pi.all.dataframe %>% t_test(formula = PI ~ GROUP, alternative = "greater", order = c("MASKED", "ORIGINAL"))
@@ -527,7 +527,7 @@ group_by(pi.all.dataframe, GROUP) %>%
 
 ```
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 mudp <- ddply(pi.all.dataframe, "GROUP", summarise, grp.mean=mean(PI))
 hd<-ggplot(pi.all.dataframe, aes(x=PI))+
   geom_histogram(aes(fill=GROUP), alpha=0.75, binwidth = 0.000025, position="identity")+
@@ -538,7 +538,7 @@ hd<-ggplot(pi.all.dataframe, aes(x=PI))+
   theme_classic() 
 ```
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 mvpi <- read.table("masked.all.pi.windowed.pi", header = TRUE)
 ovpi <- read.table("original.all.pi.windowed.pi", header = TRUE)
 
@@ -652,13 +652,13 @@ md4 <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt),size=(0
 
 
 #### Nucleotide Divergence in Diplotig Regions
-```{r}
+```{r, message=FALSE, warning=FALSE}
 pi.diplo.dataframe<-read.table("total.diplo.pi", sep="\t", header=T)
 summary(pi.diplo.dataframe)
 pi.diplo.dataframe$GROUP <- factor(pi.diplo.dataframe$GROUP, levels=c("MASKED", "ORIGINAL" ))
 ```
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 bd <-ggplot(pi.diplo.dataframe, aes(y=PI,x = reorder(GROUP, desc(GROUP))))+
   geom_boxplot(aes(fill=GROUP), width=0.1, outlier.shape = 18)+
   stat_summary(fun=mean, geom="point", shape=23, size=3)+
@@ -671,7 +671,7 @@ bd <-ggplot(pi.diplo.dataframe, aes(y=PI,x = reorder(GROUP, desc(GROUP))))+
   labs(y="&pi;") +theme(axis.title.y = element_markdown())
 ```
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 pi.diplo.dataframe %>% t_test(formula = PI ~ GROUP, alternative = "two.sided",order = c("MASKED", "ORIGINAL"))
 
 pi.diplo.dataframe %>% t_test(formula = PI ~ GROUP, alternative = "greater", order = c("MASKED", "ORIGINAL"))
@@ -685,7 +685,7 @@ group_by(pi.diplo.dataframe, GROUP) %>%
 ```
 
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 mvpi.d <- pi.diplo.dataframe[which(pi.diplo.dataframe$GROUP == "MASKED" ),]
 ovpi.d <- pi.diplo.dataframe[which(pi.diplo.dataframe$GROUP == "ORIGINAL" ),]
 
@@ -826,13 +826,13 @@ cat <(echo -e "CHROM\tBIN_START\tBIN_END\tEXP_HET\tOBS_HET\tGROUP") <(mawk '{pri
 ```
 
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 het.all.dataframe <- read.table("total.all.per10kb.het", sep="\t", header=T)
 summary(het.all.dataframe)
 het.all.dataframe$GROUP <- factor(het.all.dataframe$GROUP, levels=c("MASKED", "ORIGINAL" ))
 ```
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 b2 <-ggplot(het.all.dataframe, aes(y=OBS_HET,x = reorder(GROUP, desc(GROUP))))+
   geom_violin(aes(color=GROUP),alpha=0.75) +
   #stat_summary(fun=mean, geom="point", shape=23, size=4)+
@@ -851,7 +851,7 @@ b2
 
 
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 
 mvhet <- read.table("MASK.het.01.per10kb.text", header = TRUE)
 ovhet <- read.table("ORIG.het.01.per10kb.text", header = TRUE)
@@ -979,9 +979,9 @@ md4 <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt),size=(0
 
 
 
-png(filename="Output/MvO.all.Hetero.man.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
+#png(filename="Output/MvO.all.Hetero.man.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
 (m3/m2/md4 | b2) +plot_layout(widths = c(4, 1))
-dev.off()
+#dev.off()
 
 
 ```
@@ -995,13 +995,13 @@ cat <(head -1 total.all.per10kb.het) total.all.d.het > total.diplo.hets
 ```
 
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 het.all.diplo.dataframe <- read.table("total.diplo.hets", sep="\t", header=T)
 summary(het.all.diplo.dataframe)
 het.all.diplo.dataframe$GROUP <- factor(het.all.diplo.dataframe$GROUP, levels=c("MASKED", "ORIGINAL" ))
 ```
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 b2 <-ggplot(het.all.diplo.dataframe, aes(y=OBS_HET,x = reorder(GROUP, desc(GROUP))))+
   geom_violin(aes(color=GROUP),alpha=0.75) +
   #stat_summary(fun=mean, geom="point", shape=23, size=4)+
@@ -1020,7 +1020,7 @@ b2 <-ggplot(het.all.diplo.dataframe, aes(y=OBS_HET,x = reorder(GROUP, desc(GROUP
 
 
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 
 mvhet.d <- het.all.diplo.dataframe[which(het.all.diplo.dataframe$GROUP == "MASKED" ),]
 ovhet.d <- het.all.diplo.dataframe[which(het.all.diplo.dataframe$GROUP == "ORIGINAL" ),]
@@ -1151,9 +1151,9 @@ md4 <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt),size=(0
 
 
 
-png(filename="MvO.all.Hetero.diplo.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
+#png(filename="MvO.all.Hetero.diplo.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
 (m3/m2/md4 | b2) +plot_layout(widths = c(4, 1))
-dev.off()
+#dev.off()
 
 
 ```
@@ -1184,7 +1184,7 @@ plink2 --vcf SNP.ORIGINAL.wildAE.g1.maf05.max2alleles.FIL.vcf.gz --make-bed --ou
 ```
 
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 rds.m.ni <- snp_readBed("Masked.NoInbred.bed", backingfile = tempfile())
 rds.o.ni <- snp_readBed("Original.NoInbred.bed", backingfile = tempfile())
 # Atlantic Wild Subset
@@ -1193,7 +1193,7 @@ rds.m.wae <- snp_readBed("MASKED.wildAE.bed", backingfile = tempfile())
 
 ```
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 masked_all.m.ni<- snp_attach(rds.m.ni)
 G.m.ni <- masked_all.m.ni$genotypes
 CHR.m.ni <- masked_all.m.ni$map$chromosome
@@ -1336,14 +1336,14 @@ save(my_fst.comp.m, my_fst.comp.m.r, my_fst.comp.o, my_fst.comp.o.r, my_fst.wild
 ```
 
 Load FST Data if needed
-```{r}
+```{r, message=FALSE, warning=FALSE}
 # To load the data again
 load("FST_data.RData")
 ```
 
 
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 out_trim.m <- OutFLANK(my_fst.comp.m.r, NumberOfSamples=13, qthreshold = 0.05, Hmin = 0.1)
 
 OutFLANKResultsPlotter(out_trim.m, withOutliers = TRUE,
@@ -1381,7 +1381,7 @@ hist(out_trim.o.wae$results$pvaluesRightTail)
 
 ```
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 qthres <- 0.05
 
 P1.m <- pOutlierFinderChiSqNoCorr(my_fst.comp.m, Fstbar = out_trim.m$FSTNoCorrbar, 
@@ -1418,7 +1418,7 @@ hist(P1.o.wae$pvaluesRightTail)
 
 
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 m.plot.df<- setNames(data.frame(matrix(ncol = 7, nrow = length(my_fst.comp.m$LocusName))), c("CHR", "CHRR", "BP", "SNP", "P", "Q", "Outlier"))
 m.plot.df$CHR <-as.integer(as.factor(CHR.m.ni))
 m.plot.df$CHRR <- CHR.m.ni
@@ -1553,7 +1553,7 @@ bedtools intersect -a original.wildae.outliers.bed -b Masked_WildAE_FST_Outflank
 ```
 ### Compare Fst
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 fst.all.dataframe<-read.table("total.all.OF.fsts", sep="\t", header=T)
 fst.all.dataframe$GROUP <- factor(fst.all.dataframe$GROUP, levels=c("MASKED", "ORIGINAL" ))
 mfst <- read.table("masked.OF_fst.10kb.txt", header = TRUE)
@@ -1568,7 +1568,7 @@ o.m.fst <- join(mfst,ofst, by =c("CHROM", "BIN_START"),type="full")
 o.m.fst$DIFF <- o.m.fst$ORIG_FST - o.m.fst$MASK_FST
 ```
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 b2 <-ggplot(read.table("total.all.OF.10kb.fsts", sep="\t", header=T), aes(y=WEIGHTED_FST,x = reorder(GROUP, desc(GROUP))))+
   geom_violin(aes(color=GROUP,fill= GROUP)) +
   geom_boxplot(aes(fill=GROUP), width=0.25, outlier.shape = 21)+
@@ -1582,7 +1582,7 @@ b2 <-ggplot(read.table("total.all.OF.10kb.fsts", sep="\t", header=T), aes(y=WEIG
 
 ```
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 fst.all.dataframe %>% t_test(formula = WEIGHTED_FST ~ GROUP, alternative = "two-sided", order = c("MASKED", "ORIGINAL"))
 
 fst.all.dataframe %>% t_test(formula = WEIGHTED_FST ~ GROUP, alternative = "less", order = c("MASKED", "ORIGINAL"))
@@ -1726,13 +1726,13 @@ md4 <-md4+geom_point(data=dfm.sub2,shape = 25,alpha=1,size=3, aes(fill=as.factor
 
 #### Wild
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 fst.wildAE.dataframe<-read.table("total.wildae.OF.fsts", sep="\t", header=T)
 summary(fst.wildAE.dataframe)
 fst.wildAE.dataframe$GROUP <- factor(fst.wildAE.dataframe$GROUP, levels=c("MASKED", "ORIGINAL" ))
 ```
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 b2wae <-ggplot(read.table("total.wildae.OF.10kb.fsts", sep="\t", header=T), aes(y=WEIGHTED_FST,x = reorder(GROUP, desc(GROUP))))+
   geom_violin(aes(color=GROUP,fill= GROUP)) +
   geom_boxplot(aes(fill=GROUP), width=0.25, outlier.shape = 21)+
@@ -1745,7 +1745,7 @@ b2wae <-ggplot(read.table("total.wildae.OF.10kb.fsts", sep="\t", header=T), aes(
 
 ```
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 mfst.wae <- read.table("masked.wildae.OF_fst.10kb.bed.txt", header = TRUE)
 ofst.wae <- read.table("original.wildae.OF_fst.10kb.bed.txt", header = TRUE)
 mfst.wae <- mfst.wae %>% dplyr::rename(MASK_FST= WEIGHTED_FST)
@@ -2644,7 +2644,7 @@ cat <(echo -e "CHROM\tBIN_START\tBIN_END\tNAME\tTYPE\tLENGTH") sv.full.original.
 
 ```
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 sv_data <- read.table("sv.full.bed.txt",header = TRUE)
 sv_data_nm <- read.table("sv.full.nomissing.bed.txt",header = TRUE)
 
@@ -2664,7 +2664,7 @@ group_by(sv_data_nm, TYPE) %>%
 
 ```
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 sv_data.o <- read.table("sv.full.original.bed.txt",header = TRUE)
 sv_data_nm.o <- read.table("sv.full.original.nomissing.bed.txt",header = TRUE)
 
@@ -2683,7 +2683,7 @@ group_by(sv_data_nm.o, TYPE) %>%
     se=std.error(LENGTH, na.rm = TRUE) )%>% mutate_if(is.numeric, round, 0)
 
 ```
-```{r}
+```{r, message=FALSE, warning=FALSE}
 pops <- read.table("../other_files/population_coordinates.full.tab", header = TRUE)
 popind <- read.table("../other_files/popmap", header=TRUE)
 
@@ -2756,7 +2756,7 @@ o.freq.wildAE <- minorAllele(popsub(orig_gen.ni,c("CLP","CS","HC","HC-VA","HI","
 ```
 
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 mask_cn <- read.table("masked.cnv.tab",header = FALSE)
 mask_cn <- mask_cn[which(m.freq.ni > 0.025),]
 orig_cn <- read.table("original.cnv.tab",header = FALSE)
@@ -2805,7 +2805,7 @@ orig_cn$VSTWAE <- getVst(orig_cn[,-c(1,2,3,94,95)],popmap$POP,popmap.wildAE$POP)
 ```  
   
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 mask_cnVST <- mask_cn[complete.cases(mask_cn$VST),]
 orig_cnVST <- orig_cn[complete.cases(orig_cn$VST),]
 
@@ -2842,14 +2842,14 @@ cat <(echo -e "CHROM\tBIN_START\tBIN_END\tWEIGHTED_VST") original_vst.bed > orig
 cat <(echo -e "CHROM\tBIN_START\tBIN_END\tWEIGHTED_VST\tGROUP") <(mawk '{print $0 "\tMASKED"}' masked_vst.bed) <(mawk '{if (NR>1)print $0 "\tORIGINAL"}' original_vst.bed) > total.all.vsts
 ```
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 vst.all.dataframe<-read.table("total.all.vsts", sep="\t", header=T)
 #vst.all.dataframe<-read.table("total.wild.AE.vsts", sep="\t", header=T)
 summary(vst.all.dataframe)
 vst.all.dataframe$GROUP <- factor(vst.all.dataframe$GROUP, levels=c("MASKED", "ORIGINAL" ))
 ```
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 b2 <-ggplot(vst.all.dataframe, aes(y=WEIGHTED_VST,x = reorder(GROUP, desc(GROUP))))+
   geom_violin(aes(color=GROUP),alpha=0.75) +
   #stat_summary(fun=mean, geom="point", shape=23, size=4)+
@@ -3027,13 +3027,13 @@ cat <(echo -e "CHROM\tBIN_START\tBIN_END\tWEIGHTED_VST\tGROUP") <(mawk '{print $
 ```
 
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 vst.wae.all.dataframe<-read.table("total.all.wae.vsts", sep="\t", header=T)
 summary(vst.wae.all.dataframe)
 vst.wae.all.dataframe$GROUP <- factor(vst.wae.all.dataframe$GROUP, levels=c("MASKED", "ORIGINAL" ))
 ```
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 b2 <-ggplot(vst.wae.all.dataframe, aes(y=WEIGHTED_VST,x = reorder(GROUP, desc(GROUP))))+
   geom_violin(aes(color=GROUP),alpha=0.75) +
   #stat_summary(fun=mean, geom="point", shape=23, size=4)+
