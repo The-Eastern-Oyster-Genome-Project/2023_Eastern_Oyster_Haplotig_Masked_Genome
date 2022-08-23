@@ -7,7 +7,7 @@ output: github_document
 
 
 ```{r, include=FALSE}
-knitr::opts_chunk$set(fig.width = 56, fig.height = 30 )
+knitr::opts_chunk$set(fig.width = 5.6, fig.height = 3 )
 ```
 ## Initial Setup
 
