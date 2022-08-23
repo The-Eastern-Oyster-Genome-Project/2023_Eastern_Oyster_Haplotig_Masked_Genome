@@ -1,20 +1,19 @@
----
-title: "Oyster_Genone_Comparative_Analysis"
-author: "Jon Puritz"
-date: "8/1/2022"
-output: github_document
----
-
+Oyster_Genone_Comparative_Analysis
+================
+Jon Puritz
+8/1/2022
 
 ## Initial Setup
 
 Clone Repo
-```{bash eval = FALSE}
+
+``` bash
 git clone https://github.com/The-Eastern-Oyster-Genome-Project/2022_Eastern_Oyster_Haplotig_Masked_Genome.git
 ```
 
 Change into repo directory
-```{bash eval = FALSE}
+
+``` bash
 cd 2022_Eastern_Oyster_Haplotig_Masked_Genome
 mkdir -p Masked
 mkdir -p Original
@@ -23,7 +22,7 @@ cd Original
 
 Download original genome
 
-```{bash eval = FALSE}
+``` bash
 wget https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/002/022/765/GCF_002022765.2_C_virginica-3.0/GCF_002022765.2_C_virginica-3.0_genomic.fna.gz
 gunzip GCF_002022765.2_C_virginica-3.0_genomic.fna.gz 
 
@@ -32,7 +31,8 @@ cd ../Masked
 ```
 
 Download the masked genome
-```{bash eval = FALSE}
+
+``` bash
 wget https://github.com/The-Eastern-Oyster-Genome-Project/2022_Eastern_Oyster_Haplotig_Masked_Genome/raw/main/Haplotig_Masking/Output/Masked_Genome/reference.masked.fasta.gz
 gunzip -c reference.masked.fasta.gz > reference.fasta
 cd ..
@@ -41,12 +41,14 @@ cd ..
 ## BUSCO Evaluation
 
 Create Conda environment
-```{bash eval = FALSE}
+
+``` bash
 conda create --name busco --file ../other_files/busco_env.txt
 ```
 
 Break reference genome into its original contigs
-```{bash eval=FALSE}
+
+``` bash
 cd Original
 wget https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/002/022/765/GCF_002022765.2_C_virginica-3.0/GCF_002022765.2_C_virginica-3.0_genomic_gaps.txt.gz
 gunzip GCF_002022765.2_C_virginica-3.0_genomic_gaps.txt.gz
@@ -62,14 +64,17 @@ cd ..
 ```
 
 Download the primary contigs from the masked genome
-```{bash eval = FALSE}
+
+``` bash
 cd Masked
 wget https://github.com/The-Eastern-Oyster-Genome-Project/2022_Eastern_Oyster_Haplotig_Masked_Genome/raw/main/Haplotig_Masking/Output/primary.contigs.fasta.gz
 gunzip primary.contigs.fasta.gz
 cd ..
 ```
+
 Run BUSCO
-```{bash eval = FALSE}
+
+``` bash
 source activate busco
 cd Output/BUSCO
 export BUSCO_CONFIG_FILE=../../../other_files/myconfig.ini
@@ -77,10 +82,9 @@ busco -m genome -i ../../../Original/contigs.fasta -o original_contigs -l mollus
 busco -m genome -i ../../../Original/reference.fasta -o original_reference -l mollusca_odb10 --cpu 48
 busco -m genome -i ../../../Masked/reference.fasta -o masked_genome -l mollusca_odb10 --cpu 48
 busco -m genome -i ../../../Masked/primary.contigs.fasta -o masked_primary_contigs -l mollusca_odb10 --cpu 48
-
 ```
 
-```{bash eval=FALSE}
+``` bash
 mkdir -p Output/BUSCO/Summaries
 cd Output/BUSCO
 cp original_reference/short_summary.*txt ./Summaries
@@ -89,7 +93,7 @@ cp masked_genome/short_summary.*txt ./Summaries
 cp masked_primary_contigs/short_summary.*txt ./Summaries
 ```
 
-```{bash eval=FALSE}
+``` bash
 source activate busco
 cd Output/BUSCO
 python ~/miniconda3/envs/busco/bin/generate_plot.py -wd Summaries
@@ -99,38 +103,40 @@ sed -i 's/masked_genome/Masked Genome/g' ./Summaries/busco_figure.R
 sed -i 's/masked_primary_contigs/Masked Primary (Non-haplotig) Contigs/g' ./Summaries/busco_figure.R
 Rscript ./Summaries/busco_figure.R
 ```
-Output figure from `BUSCO`
-![BUSCO Results](./Output/BUSCO/Summaries/busco_figure.png)
 
+Output figure from `BUSCO` ![BUSCO
+Results](./Output/BUSCO/Summaries/busco_figure.png)
 
 ## Run variant calling
 
-Run modified dDocent pipeline **but make sure to change nunber of processors to match your machine and your email address**
-```{bash eval = FALSE}
+Run modified dDocent pipeline **but make sure to change nunber of
+processors to match your machine and your email address**
+
+``` bash
 bash ../scripts/dDocent_ngs ../other_files/config
 ```
 
 Wait for code to finsh (will take a few days)
 
 ## Filter variant calls **Note** 40 is the number of processors
-```{bash eval = FALSE}
+
+``` bash
 cd raw.vcf
 bash ../../../scripts/PVCF_filter.sh MASKED 40 
 ```
 
-## Run and filter original 
-```{bash eval = FALSE}
+## Run and filter original
+
+``` bash
 cd ../Original
 bash ../scripts/dDocent_ngs ../other_files/config
 cd raw.vcf
 bash ../../../scripts/PVCF_filter.sh ORIG 40 
-
 ```
-
 
 ## Structural Variant Calling
 
-```{bash eval = FALSE}
+``` bash
 conda create --name delly --file ../other_files/delly.txt
 cd Masked
 source activate delly
@@ -199,18 +205,18 @@ mkdir -p SV_calls
 
 mv *.bcf ./SV_calls
 cd ..
-
 ```
 
 ## Setup Analyses
 
-```{bash eval = FALSE}
+``` bash
 ln -s ../Masked/raw.vcf/filtered/*.vcf.gz .
 ln -s ../Original/raw.vcf/filtered/*.vcf.gz .
 ```
 
 ### Setup R Environment, Colors, and plotting set
-```{r, message=FALSE, warning=FALSE}
+
+``` r
 library("plyr")
 library("dplyr")
 library("ggplot2")
@@ -240,11 +246,16 @@ library(matrixStats)
 
 ### Setup
 
-```{r}
+``` r
 pops <- read.table("../other_files/population_coordinates.full.tab", header = TRUE)
 popind <- read.table("../other_files/popmap", header=TRUE)
 
 popmap <-join(pops,popind,type = "inner")
+```
+
+    ## Joining by: POP
+
+``` r
 popmap <- popmap[order(popmap$IND),]
 popmap$Type <- factor(popmap$Type, levels=c("Inbred","Selected","Wild"))
 
@@ -263,7 +274,7 @@ popmap.wildAE <- droplevels(subset(popmap.wild, POP != "CL" & POP !="SL" ))
 
 ### Coverage
 
-```{bash eval=FALSE}
+``` bash
 source activate HMASK
 mkdir -p Masked_GI
 cd Masked_GI
@@ -286,7 +297,7 @@ bedtools coverage -a 10kb.bed -b GI_01-RGnd.bam -mean -sorted -g genome.file > G
 bedtools coverage -a 10kb.bed -b GI_01-RG.F.bam -mean -sorted -g genome.file > GI.10kb.fil.cov.bed
 ```
 
-```{bash}
+``` bash
 cd Masked_GI
 
 cat <(echo -e "chrom \t start \t end \t counts \t dataset") <(mawk '{print $1 "\t" $2 "\t" $3 "\t" $4 "\tFiltered"}' GI.10kb.fil.cov.bed ) <(mawk '{print $0 "\tMulti"}' GI.10kb.multi.cov.bed ) <(mawk '{print $0 "\tTotal"}' GI.10kb.cov.bed ) > ../masked.coverage.bed
@@ -296,13 +307,11 @@ cat <(echo -e "chrom \t start \t end \t counts \t dataset") <(mawk '{print $1 "\
 paste <(cut -f1,2,3,4 GI.10kb.cov.bed) <(cut -f4 GI.10kb.fil.cov.bed) <(cut -f4 GI.10kb.multi.cov.bed) > GI.masked.bed
 
 cat <(echo -e "chrom\tstart\tend\tTotal\tFiltered\tMulti\tdataset") <(mawk '{print $0 "\tMasked"}' GI.masked.bed) <(mawk '{print $0 "\tOriginal"}' ../Haplotig_Masking/GI.original.bed) > ../dataframehm.bed
-
 ```
 
+    ## mawk: cannot open ../Haplotig_Masking/GI.original.bed (No such file or directory)
 
-
-
-```{r}
+``` r
 cbPalette1 <- c("#D55E00","#999999","#E69F00","#CC79A7","#009E73","#7d5577")
 graph.breaks <- c("Haplotig_Masked","Original")
 graph.labels <- c("Haplotig Masked", "Original")
@@ -318,11 +327,16 @@ ggplot(dataframe2,aes(fill=dataset, col=dataset, alpha=dataset)) +
   scale_color_manual(values=cbPalette1, breaks = graph.breaks, labels=graph.labels, name = "Genome")+
   scale_fill_manual(values=cbPalette1, breaks = graph.breaks, labels=graph.labels, name = "Genome") +
   theme_classic() 
+```
+
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-20-1.png)<!-- -->
+
+``` r
   #facet_wrap(~chrom, scales = "free") 
 #dev.off()
 ```
 
-```{bash eval = FALSE}
+``` bash
 cd ../Masked 
 bedtools coverage -a 10kb.bed -b filter.merged.bam -mean -sorted -g genome.file > ../Comparative_Analysis/10kb.masked.cov.bed
 cd ../Original/
@@ -330,20 +344,19 @@ bedtools coverage -a 10kb.bed -b filter.merged.bam -mean -sorted -g genome.file 
 ```
 
 ### Create New Diplotig Windows
-```{bash eval = FALSE}
+
+``` bash
 paste 10kb.original.cov.bed <(cut -f4 10kb.masked.cov.bed ) | mawk '$5 > 1.5 * $4' > new_diplotigs.bed
 bedtools merge -i new_diplotigs.bed > merged.diplotig.windows.bed
-
 ```
 
-
-```{bash eval=FALSE}
+``` bash
 cat <(echo -e "chrom \t start \t end \t counts \t dataset") ../Haplotig_Masking/haplotigs.bed ../Haplotig_Masking/primary.bed <(mawk '{print $1 "\t" $2 "\t" $3 "\t0\tdiplotig"}' merged.diplotig.windows.bed) > contigs.marked.bed
 mawk '{print $1 "\t" $2 "\t" $3 "\t0\toriginal"}' ../Haplotig_Masking/contigs.bed > contigs.original.bed
 cat contigs.marked.bed contigs.original.bed > contigs.marked.bed.txt
 ```
 
-```{r, message=FALSE, warning=FALSE}
+``` r
 tidymis <- read.table("contigs.marked.bed.txt", sep="\t", header=T)
 
 tidymis1 <- subset(tidymis, chrom == "NC_035781.1", select=c(chrom, start, end, counts, dataset))
@@ -409,46 +422,46 @@ j2a <- j2a + geom_line(aes(y=rollmean(counts, 3, na.pad=TRUE)),size=0.5) +
 j2a  / j2 + plot_layout(heights = c(1.5,1.5), guides = "collect")
 ```
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-24-1.png)<!-- -->
 
 ### SNPS
-```{bash eval = FALSE}
+
+``` bash
 ls *.vcf.gz | parallel "paste <(echo {}) <(bcftools stats --threads 12 {} | grep ^SN | cut -f3- | grep SNPs | cut -f2 -d ":")" > Output/SNP.list.table
 ```
 
-```{bash}
+``` bash
 column -t Output/SNP.list.table
 ```
 
+    ## SNP.ORIG.TRSdp5g75.nDNA.g1.maf05.max2alleles.FIL.vcf.gz    3580098
+    ## SNP.ORIG.TRSdp5g75.nDNA.g1.maf05.FIL.vcf.gz                4299397
+    ## SNP.MASKED.TRSdp5g75.nDNA.g1.maf05.max2alleles.FIL.vcf.gz  5574080
+    ## SNP.MASKED.TRSdp5g75.nDNA.g1.maf05.FIL.vcf.gz              6699719
+    ## SNP.ORIG.TRSdp5g75.nDNA.g1.maf01.max2alleles.FIL.vcf.gz    7674518
+    ## SNP.MASKED.TRSdp5g75.nDNA.g1.maf01.FIL.vcf.gz              14103332
+    ## SNP.ORIG.TRSdp5g75.nDNA.g1.maf01.FIL.vcf.gz                8910740
+    ## SNP.ORIG.TRSdp5g75.nDNA.g95.maf05.FIL.vcf.gz               8204907
+    ## SNP.MASKED.TRSdp5g75.nDNA.g1.maf01.max2alleles.FIL.vcf.gz  12149052
+    ## SNP.ORIG.TRSdp5g75.nDNA.g9.maf05.FIL.vcf.gz                10386706
+    ## SNP.MASKED.TRSdp5g75.nDNA.g95.maf05.FIL.vcf.gz             11638196
+    ## SNP.MASKED.TRSdp5g75.nDNA.g9.maf05.FIL.vcf.gz              13748757
+    ## SNP.ORIG.TRSdp5g75.nDNA.g95.maf01.FIL.vcf.gz               16736822
+    ## SNP.ORIG.TRSdp5g75.nDNA.g9.maf01.FIL.vcf.gz                21085816
+    ## SNP.MASKED.TRSdp5g75.nDNA.g95.maf01.FIL.vcf.gz             23885771
+    ## SNP.MASKED.TRSdp5g75.nDNA.g9.maf01.FIL.vcf.gz              27926188
 
-```{bash eval = FALSE}
+``` bash
 bcftools query -f '%CHROM\t%POS\n' SNP.MASKED.TRSdp5g75.nDNA.g1.maf01.FIL.vcf.gz | mawk '{print $1 "\t" $2-1 "\t" $2}' > MASKED.SNP.MAF01.bed
 bcftools query -f '%CHROM\t%POS\n' SNP.ORIG.TRSdp5g75.nDNA.g1.maf01.FIL.vcf.gz | mawk '{print $1 "\t" $2-1 "\t" $2}' > ORIGINAL.SNP.MAF01.bed
 ```
 
-```{bash eval = FALSE}
+``` bash
 bedtools intersect -b <(sort -k 1,1 -k2,2n ORIGINAL.SNP.MAF01.bed) -a <(sort -k 1,1 -k2,2n 10kb.bed) -c -sorted > ORIG.snps.maf01.per.10kb.bed
 bedtools intersect -b <(sort -k 1,1 -k2,2n  MASKED.SNP.MAF01.bed) -a <(sort -k 1,1 -k2,2n 10kb.bed) -c -sorted > MASKED.snps.maf01.per.10kb.bed
 ```
 
-
-
-```{bash eval = FALSE}
+``` bash
 vcftools --gzvcf SNP.MASKED.TRSdp5g75.nDNA.g1.maf01.FIL.vcf.gz --diff-site-discordance --gzdiff SNP.ORIG.TRSdp5g75.nDNA.g1.maf01.FIL.vcf.gz --out maf01.concordance
 
 bedtools subtract -a MASKED.SNP.MAF01.bed -b ORIGINAL.SNP.MAF01.bed > masked.only.SNP.MAF01.bed
@@ -461,24 +474,58 @@ mawk '$3 == "B"' maf01.concordance.diff.sites | mawk '{print $1 "\t" $2 -1 "\t" 
 
 
 cat <(head -1 maf01.concordance.diff.sites) <(mawk '$3 == "B"' maf01.concordance.diff.sites) > MvO.concordance
-
 ```
 
-```{r}
+``` r
 countLines("MASKED.SNP.new_diplotigs.bed")
+```
+
+    ## [1] 3381377
+    ## attr(,"lastLineHasNewline")
+    ## [1] TRUE
+
+``` r
 countLines("ORIGINAL.SNP.new_diplotigs.bed")
+```
+
+    ## [1] 95667
+    ## attr(,"lastLineHasNewline")
+    ## [1] TRUE
+
+``` r
 countLines("masked.only.new.SNPs.diplotigs.bed")
 ```
 
-```{r}
+    ## [1] 3306188
+    ## attr(,"lastLineHasNewline")
+    ## [1] TRUE
+
+``` r
 mvo.con <- read.table("MvO.concordance", sep="\t", header=T)
 
 summary(mvo.con)
 ```
 
+    ##          CHROM              POS            FILES       MATCHING_ALLELES
+    ##  NC_035784.1:2223804   Min.   :     3466   B:8735612   Min.   :0.0000  
+    ##  NC_035781.1:1193709   1st Qu.: 20608960               1st Qu.:1.0000  
+    ##  NC_035780.1:1150868   Median : 39078488               Median :1.0000  
+    ##  NC_035782.1:1138542   Mean   : 39402341               Mean   :0.9988  
+    ##  NC_035783.1:1100666   3rd Qu.: 56055413               3rd Qu.:1.0000  
+    ##  NC_035788.1: 598546   Max.   :104078134               Max.   :1.0000  
+    ##  (Other)    :1329477                                                   
+    ##  N_COMMON_CALLED   N_DISCORD         DISCORDANCE       
+    ##  Min.   :79.00   Min.   : 0.00000   Min.   :0.0000000  
+    ##  1st Qu.:90.00   1st Qu.: 0.00000   1st Qu.:0.0000000  
+    ##  Median :90.00   Median : 0.00000   Median :0.0000000  
+    ##  Mean   :89.54   Mean   : 0.03394   Mean   :0.0003821  
+    ##  3rd Qu.:90.00   3rd Qu.: 0.00000   3rd Qu.:0.0000000  
+    ##  Max.   :90.00   Max.   :74.00000   Max.   :0.8222220  
+    ## 
 
 ### PI
-```{bash eval = FALSE}
+
+``` bash
 bcftools view --threads 40 -S ../other_files/no_inbred.pop SNP.MASKED.TRSdp5g75.nDNA.g1.maf01.FIL.vcf.gz | vcftools --vcf -  --window-pi 10000 --out masked.all.pi &
 bcftools view --threads 40 -S ../other_files/no_inbred.pop SNP.ORIG.TRSdp5g75.nDNA.g1.maf01.FIL.vcf.gz | vcftools --vcf -  --window-pi 10000 --out original.all.pi
 
@@ -493,13 +540,33 @@ mawk '!/CH/' masked.all.pi.windowed.pi | mawk '{print $1 "\t" $2-1 "\t" $3-1 "\t
 mawk '!/CH/' original.all.pi.windowed.pi | mawk '{print $1 "\t" $2-1 "\t" $3-1 "\t" $4 "\t" $5}' > original.pi.10kb.bed
 ```
 
-```{r}
+``` r
 pi.all.dataframe<-read.table("total.all.pi", sep="\t", header=T)
 summary(pi.all.dataframe)
+```
+
+    ##          CHROM         BIN_START            BIN_END            N_VARIANTS    
+    ##  NC_035784.1:14731   Min.   :        1   Min.   :    10000   Min.   :   1.0  
+    ##  NC_035782.1: 9958   1st Qu.: 18460001   1st Qu.: 18470000   1st Qu.:  33.0  
+    ##  NC_035780.1: 9238   Median : 36680001   Median : 36690000   Median : 296.0  
+    ##  NC_035783.1: 9069   Mean   : 38005348   Mean   : 38015347   Mean   : 303.8  
+    ##  NC_035781.1: 8852   3rd Qu.: 54720001   3rd Qu.: 54730000   3rd Qu.: 503.0  
+    ##  NC_035788.1: 7253   Max.   :104140001   Max.   :104150000   Max.   :1481.0  
+    ##  (Other)    :16654                                                           
+    ##        PI                 GROUP      
+    ##  Min.   :2.548e-06   MASKED  :38092  
+    ##  1st Qu.:5.126e-04   ORIGINAL:37663  
+    ##  Median :4.575e-03                   
+    ##  Mean   :4.851e-03                   
+    ##  3rd Qu.:8.016e-03                   
+    ##  Max.   :2.629e-02                   
+    ## 
+
+``` r
 pi.all.dataframe$GROUP <- factor(pi.all.dataframe$GROUP, levels=c("MASKED", "ORIGINAL" ))
 ```
 
-```{r}
+``` r
 bd <-ggplot(pi.all.dataframe, aes(x=PI,y = reorder(GROUP, desc(GROUP))))+
   geom_violin(aes(color=GROUP,fill= GROUP)) +
   geom_boxplot(aes(fill=GROUP), width=0.1,outlier.shape = 23, outlier.color = "black")+
@@ -510,24 +577,48 @@ bd <-ggplot(pi.all.dataframe, aes(x=PI,y = reorder(GROUP, desc(GROUP))))+
   theme_classic() 
 #png(filename="MvO.all.PI.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
 bd
+```
+
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-34-1.png)<!-- -->
+
+``` r
 #dev.off()
 ```
 
-```{r}
+``` r
 pi.all.dataframe %>% t_test(formula = PI ~ GROUP, alternative = "two.sided",order = c("MASKED", "ORIGINAL"))
+```
 
+    ## # A tibble: 1 × 7
+    ##   statistic   t_df p_value alternative estimate lower_ci upper_ci
+    ##       <dbl>  <dbl>   <dbl> <chr>          <dbl>    <dbl>    <dbl>
+    ## 1      70.2 74574.       0 two.sided    0.00205  0.00200  0.00211
+
+``` r
 pi.all.dataframe %>% t_test(formula = PI ~ GROUP, alternative = "greater", order = c("MASKED", "ORIGINAL"))
+```
 
+    ## # A tibble: 1 × 7
+    ##   statistic   t_df p_value alternative estimate lower_ci upper_ci
+    ##       <dbl>  <dbl>   <dbl> <chr>          <dbl>    <dbl>    <dbl>
+    ## 1      70.2 74574.       0 greater      0.00205  0.00201      Inf
+
+``` r
 group_by(pi.all.dataframe, GROUP) %>%
   dplyr::summarise(
     count = n(),
     mean = mean(PI, na.rm = TRUE),
     sd = sd(PI, na.rm = TRUE),
     se=std.error(PI, na.rm = TRUE) )
-
 ```
 
-```{r}
+    ## # A tibble: 2 × 5
+    ##   GROUP    count    mean      sd        se
+    ##   <fct>    <int>   <dbl>   <dbl>     <dbl>
+    ## 1 MASKED   38092 0.00587 0.00430 0.0000220
+    ## 2 ORIGINAL 37663 0.00382 0.00374 0.0000193
+
+``` r
 mudp <- ddply(pi.all.dataframe, "GROUP", summarise, grp.mean=mean(PI))
 hd<-ggplot(pi.all.dataframe, aes(x=PI))+
   geom_histogram(aes(fill=GROUP), alpha=0.75, binwidth = 0.000025, position="identity")+
@@ -538,7 +629,7 @@ hd<-ggplot(pi.all.dataframe, aes(x=PI))+
   theme_classic() 
 ```
 
-```{r}
+``` r
 mvpi <- read.table("masked.all.pi.windowed.pi", header = TRUE)
 ovpi <- read.table("original.all.pi.windowed.pi", header = TRUE)
 
@@ -548,11 +639,9 @@ o.m.pi <- join(mvpi,ovpi, by =c("CHROM", "BIN_START"),type="full")
 
 
 o.m.pi$DIFF <- o.m.pi$ORIG_PI - o.m.pi$MASK_PI
-
 ```
 
-
-```{r, message=FALSE, warning=FALSE}
+``` r
 SNP<-c(1:(nrow(o.m.pi)))
 mydf<-data.frame(SNP,o.m.pi)
 mydf$CHR <- mydf$CHROM
@@ -647,18 +736,43 @@ md4 <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt),size=(0
 
 #png(filename="Output/MvO.all.pi.man.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
 (m3/m2/md4 | bd) +plot_layout(widths = c(4, 1))
+```
+
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-38-1.png)<!-- -->
+
+``` r
 #dev.off()
 ```
 
-
 #### Nucleotide Divergence in Diplotig Regions
-```{r}
+
+``` r
 pi.diplo.dataframe<-read.table("total.diplo.pi", sep="\t", header=T)
 summary(pi.diplo.dataframe)
+```
+
+    ##          CHROM        BIN_START            BIN_END            N_VARIANTS  
+    ##  NC_035782.1:1887   Min.   :        1   Min.   :    10000   Min.   :   1  
+    ##  NC_035783.1:1650   1st Qu.: 15260001   1st Qu.: 15270000   1st Qu.:  17  
+    ##  NC_035781.1:1543   Median : 30850001   Median : 30860000   Median : 239  
+    ##  NC_035787.1:1427   Mean   : 33306251   Mean   : 33316250   Mean   : 296  
+    ##  NC_035780.1:1321   3rd Qu.: 47700001   3rd Qu.: 47710000   3rd Qu.: 538  
+    ##  NC_035788.1:1119   Max.   :104040001   Max.   :104050000   Max.   :1481  
+    ##  (Other)    :2800                                                         
+    ##        PI                 GROUP     
+    ##  Min.   :2.548e-06   MASKED  :7463  
+    ##  1st Qu.:2.480e-04   ORIGINAL:4284  
+    ##  Median :3.685e-03                  
+    ##  Mean   :4.694e-03                  
+    ##  3rd Qu.:8.525e-03                  
+    ##  Max.   :2.629e-02                  
+    ## 
+
+``` r
 pi.diplo.dataframe$GROUP <- factor(pi.diplo.dataframe$GROUP, levels=c("MASKED", "ORIGINAL" ))
 ```
 
-```{r}
+``` r
 bd <-ggplot(pi.diplo.dataframe, aes(y=PI,x = reorder(GROUP, desc(GROUP))))+
   geom_boxplot(aes(fill=GROUP), width=0.1, outlier.shape = 18)+
   stat_summary(fun=mean, geom="point", shape=23, size=3)+
@@ -671,11 +785,25 @@ bd <-ggplot(pi.diplo.dataframe, aes(y=PI,x = reorder(GROUP, desc(GROUP))))+
   labs(y="&pi;") +theme(axis.title.y = element_markdown())
 ```
 
-```{r}
+``` r
 pi.diplo.dataframe %>% t_test(formula = PI ~ GROUP, alternative = "two.sided",order = c("MASKED", "ORIGINAL"))
+```
 
+    ## # A tibble: 1 × 7
+    ##   statistic  t_df p_value alternative estimate lower_ci upper_ci
+    ##       <dbl> <dbl>   <dbl> <chr>          <dbl>    <dbl>    <dbl>
+    ## 1      145. 7794.       0 two.sided    0.00688  0.00679  0.00698
+
+``` r
 pi.diplo.dataframe %>% t_test(formula = PI ~ GROUP, alternative = "greater", order = c("MASKED", "ORIGINAL"))
+```
 
+    ## # A tibble: 1 × 7
+    ##   statistic  t_df p_value alternative estimate lower_ci upper_ci
+    ##       <dbl> <dbl>   <dbl> <chr>          <dbl>    <dbl>    <dbl>
+    ## 1      145. 7794.       0 greater      0.00688  0.00681      Inf
+
+``` r
 group_by(pi.diplo.dataframe, GROUP) %>%
   dplyr::summarise(
     count = n(),
@@ -684,8 +812,13 @@ group_by(pi.diplo.dataframe, GROUP) %>%
     se=std.error(PI, na.rm = TRUE) )
 ```
 
+    ## # A tibble: 2 × 5
+    ##   GROUP    count     mean       sd         se
+    ##   <fct>    <int>    <dbl>    <dbl>      <dbl>
+    ## 1 MASKED    7463 0.00720  0.00405  0.0000468 
+    ## 2 ORIGINAL  4284 0.000321 0.000460 0.00000702
 
-```{r}
+``` r
 mvpi.d <- pi.diplo.dataframe[which(pi.diplo.dataframe$GROUP == "MASKED" ),]
 ovpi.d <- pi.diplo.dataframe[which(pi.diplo.dataframe$GROUP == "ORIGINAL" ),]
 
@@ -697,8 +830,7 @@ o.m.pi.d <- join(mvpi.d,ovpi.d, by =c("CHROM", "BIN_START"),type="full")
 o.m.pi.d$DIFF <- o.m.pi.d$ORIG_PI - o.m.pi.d$MASK_PI
 ```
 
-
-```{r, message=FALSE, warning=TRUE}
+``` r
 SNP<-c(1:(nrow(o.m.pi.d)))
 mydf<-data.frame(SNP,o.m.pi.d)
 mydf$CHR <- mydf$CHROM
@@ -716,7 +848,12 @@ mydf %>%
 mydf$CHR <- as.numeric(mydf$CHR)  
 
 m2 <-ggman(mydf,chrom="CHR",bp="BIN_START",pvalue="MASK_PI",snp="SNP",logTransform=FALSE,sigLine=NA, relative.positions = TRUE)
+```
 
+    ## Warning: `guides(<scale> = FALSE)` is deprecated. Please use `guides(<scale> =
+    ## "none")` instead.
+
+``` r
 dfm <- m2[[1]]
 dfm$chrom_alt <- factor(dfm$chrom_alt, levels=c(0,1))
 
@@ -736,14 +873,23 @@ m2.total <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt)))+
   ggtitle("Masked") +theme_classic()+
   labs(y="&pi;") +theme(axis.title.y = element_markdown())+ 
   scale_color_manual(values=c("#7d5577", "#52374e")) 
+```
 
+    ## Warning: `guides(<scale> = FALSE)` is deprecated. Please use `guides(<scale> =
+    ## "none")` instead.
 
+``` r
 m2 <-m2.total
 
 
 
 m3 <-ggman(mydf,chrom="CHR",bp="BIN_START",pvalue="ORIG_PI",snp="SNP",logTransform=FALSE,sigLine=NA, ymax=1, relative.positions = TRUE)
+```
 
+    ## Warning: `guides(<scale> = FALSE)` is deprecated. Please use `guides(<scale> =
+    ## "none")` instead.
+
+``` r
 dfm <- m3[[1]]
 dfm$chrom_alt <- factor(dfm$chrom_alt, levels=c(0,1))
 
@@ -764,12 +910,26 @@ m3.total <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt)))+
   ggtitle("Original") +theme_classic()+
   labs(y="&pi;") +theme(axis.title.y = element_markdown())+ 
   scale_color_manual(values=c("#0072B2", "#005280"))
+```
 
+    ## Warning: `guides(<scale> = FALSE)` is deprecated. Please use `guides(<scale> =
+    ## "none")` instead.
+
+``` r
 m3 <-m3.total
 
 
 md4 <-ggman(mydf,chrom="CHR",bp="BIN_START",pvalue="DIFF",snp="SNP",logTransform=FALSE,sigLine=NA, relative.positions = TRUE)
+```
 
+    ## Warning in ggman(mydf, chrom = "CHR", bp = "BIN_START", pvalue = "DIFF", : NaNs
+    ## produced
+
+    ## Warning in ggman(mydf, chrom = "CHR", bp = "BIN_START", pvalue = "DIFF", :
+    ## `guides(<scale> = FALSE)` is deprecated. Please use `guides(<scale> = "none")`
+    ## instead.
+
+``` r
 dfm <- md4[[1]]
 dfm$chrom_alt <- factor(dfm$chrom_alt, levels=c(0,1))
 
@@ -791,18 +951,31 @@ md4 <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt),size=(0
   ggtitle("Original - Masked") +theme_classic()+
   labs(y="Difference in &pi;") +theme(axis.title.y = element_markdown())+ 
   scale_color_manual(values=c("#a59cb5", "#574f66"))
+```
 
+    ## Warning: `guides(<scale> = FALSE)` is deprecated. Please use `guides(<scale> =
+    ## "none")` instead.
 
-
+``` r
 #png(filename="Output/MvO.diplo.pi.man.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
 (m3/m2/md4 | bd) +plot_layout(widths = c(4, 1))
+```
+
+    ## Warning: Removed 3214 rows containing missing values (geom_point).
+
+    ## Warning: Removed 35 rows containing missing values (geom_point).
+
+    ## Warning: Removed 3250 rows containing missing values (geom_point).
+
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-43-1.png)<!-- -->
+
+``` r
 #dev.off()
 ```
 
+### Heterozygosity Masked vs. Original
 
-
-### Heterozygosity Masked vs. Original
-```{bash eval = FALSE}
+``` bash
 bcftools index -f --threads 40 SNP.MASKED.TRSdp5g75.nDNA.g1.maf01.max2alleles.FIL.vcf.gz
 bcftools index -f --threads 40 SNP.ORIG.TRSdp5g75.nDNA.g1.maf01.max2alleles.FIL.vcf.gz
 
@@ -822,17 +995,35 @@ cat <(echo -e "CHROM\tBIN_START\tBIN_END\tEXP_HET\tOBS_HET\tGROUP") <(mawk '{pri
 
 
 cat <(echo -e "CHROM\tBIN_START\tBIN_END\tEXP_HET\tOBS_HET\tGROUP") <(mawk '{print $0 "\tMASKED"}' MASK.het.01.per10kb.bed) <(mawk '{print $0 "\tORIGINAL"}' ORIG.het.01.per10kb.bed) > total.all.per10kb.het
-
 ```
 
-
-```{r}
+``` r
 het.all.dataframe <- read.table("total.all.per10kb.het", sep="\t", header=T)
 summary(het.all.dataframe)
+```
+
+    ##          CHROM         BIN_START            BIN_END             EXP_HET       
+    ##  NC_035784.1:14701   Min.   :        0   Min.   :    10000   Min.   :0.02531  
+    ##  NC_035782.1: 9934   1st Qu.: 18470000   1st Qu.: 18480000   1st Qu.:0.12441  
+    ##  NC_035780.1: 9208   Median : 36700000   Median : 36710000   Median :0.14613  
+    ##  NC_035783.1: 9054   Mean   : 38017597   Mean   : 38027597   Mean   :0.14837  
+    ##  NC_035781.1: 8838   3rd Qu.: 54735000   3rd Qu.: 54745000   3rd Qu.:0.16925  
+    ##  NC_035788.1: 7213   Max.   :104140000   Max.   :104150000   Max.   :0.50000  
+    ##  (Other)    :16535                                                            
+    ##     OBS_HET            GROUP      
+    ##  Min.   :0.0000   MASKED  :37984  
+    ##  1st Qu.:0.1125   ORIGINAL:37499  
+    ##  Median :0.1332                   
+    ##  Mean   :0.1378                   
+    ##  3rd Qu.:0.1556                   
+    ##  Max.   :0.8205                   
+    ## 
+
+``` r
 het.all.dataframe$GROUP <- factor(het.all.dataframe$GROUP, levels=c("MASKED", "ORIGINAL" ))
 ```
 
-```{r}
+``` r
 b2 <-ggplot(het.all.dataframe, aes(y=OBS_HET,x = reorder(GROUP, desc(GROUP))))+
   geom_violin(aes(color=GROUP),alpha=0.75) +
   #stat_summary(fun=mean, geom="point", shape=23, size=4)+
@@ -849,10 +1040,9 @@ b2 <-ggplot(het.all.dataframe, aes(y=OBS_HET,x = reorder(GROUP, desc(GROUP))))+
 b2
 ```
 
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-46-1.png)<!-- -->
 
-
-```{r}
-
+``` r
 mvhet <- read.table("MASK.het.01.per10kb.text", header = TRUE)
 ovhet <- read.table("ORIG.het.01.per10kb.text", header = TRUE)
 
@@ -864,9 +1054,23 @@ o.m.het <- join(mvhet,ovhet, by =c("CHROM", "BIN_START"),type="full")
 o.m.het$DIFF <- o.m.het$ORIG_HET - o.m.het$MASK_HET
 
 het.all.dataframe %>% t_test(formula = OBS_HET ~ GROUP, alternative = "two.sided",order = c("MASKED", "ORIGINAL"))
+```
 
+    ## # A tibble: 1 × 7
+    ##   statistic   t_df  p_value alternative estimate lower_ci upper_ci
+    ##       <dbl>  <dbl>    <dbl> <chr>          <dbl>    <dbl>    <dbl>
+    ## 1      10.5 74517. 5.47e-26 two.sided    0.00393  0.00320  0.00466
+
+``` r
 het.all.dataframe %>% t_test(formula = OBS_HET ~ GROUP, alternative = "greater", order = c("MASKED", "ORIGINAL"))
+```
 
+    ## # A tibble: 1 × 7
+    ##   statistic   t_df  p_value alternative estimate lower_ci upper_ci
+    ##       <dbl>  <dbl>    <dbl> <chr>          <dbl>    <dbl>    <dbl>
+    ## 1      10.5 74517. 2.74e-26 greater      0.00393  0.00332      Inf
+
+``` r
 group_by(het.all.dataframe, GROUP) %>%
   dplyr::summarise(
     count = n(),
@@ -875,8 +1079,13 @@ group_by(het.all.dataframe, GROUP) %>%
     se=std.error(OBS_HET, na.rm = TRUE) )
 ```
 
+    ## # A tibble: 2 × 5
+    ##   GROUP    count  mean     sd       se
+    ##   <fct>    <int> <dbl>  <dbl>    <dbl>
+    ## 1 MASKED   37984 0.140 0.0485 0.000249
+    ## 2 ORIGINAL 37499 0.136 0.0537 0.000277
 
-```{r, message=FALSE, warning=FALSE}
+``` r
 SNP<-c(1:(nrow(o.m.het)))
 mydf<-data.frame(SNP,o.m.het)
 mydf$CHR <- mydf$CHROM
@@ -982,26 +1191,45 @@ md4 <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt),size=(0
 png(filename="Output/MvO.all.Hetero.man.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
 (m3/m2/md4 | b2) +plot_layout(widths = c(4, 1))
 dev.off()
-
-
 ```
 
+    ## png 
+    ##   2
 
-### Heterozygosity Masked vs. Original in Diplotigs
-```{bash eval = FALSE}
+### Heterozygosity Masked vs. Original in Diplotigs
 
+``` bash
 bedtools intersect -a <(mawk '!/CHRO/' total.all.per10kb.het ) -b new_diplotigs.bed -wa > total.all.d.het
 cat <(head -1 total.all.per10kb.het) total.all.d.het > total.diplo.hets
 ```
 
-
-```{r}
+``` r
 het.all.diplo.dataframe <- read.table("total.diplo.hets", sep="\t", header=T)
 summary(het.all.diplo.dataframe)
+```
+
+    ##          CHROM        BIN_START            BIN_END             EXP_HET       
+    ##  NC_035782.1:1881   Min.   :        0   Min.   :    10000   Min.   :0.02531  
+    ##  NC_035783.1:1647   1st Qu.: 15260000   1st Qu.: 15270000   1st Qu.:0.11969  
+    ##  NC_035781.1:1537   Median : 30840000   Median : 30850000   Median :0.14269  
+    ##  NC_035787.1:1424   Mean   : 33297527   Mean   : 33307527   Mean   :0.14420  
+    ##  NC_035780.1:1320   3rd Qu.: 47700000   3rd Qu.: 47710000   3rd Qu.:0.16626  
+    ##  NC_035788.1:1114   Max.   :104040000   Max.   :104050000   Max.   :0.49926  
+    ##  (Other)    :2786                                                            
+    ##     OBS_HET            GROUP     
+    ##  Min.   :0.0000   MASKED  :7453  
+    ##  1st Qu.:0.1089   ORIGINAL:4256  
+    ##  Median :0.1313                  
+    ##  Mean   :0.1342                  
+    ##  3rd Qu.:0.1538                  
+    ##  Max.   :0.8077                  
+    ## 
+
+``` r
 het.all.diplo.dataframe$GROUP <- factor(het.all.diplo.dataframe$GROUP, levels=c("MASKED", "ORIGINAL" ))
 ```
 
-```{r}
+``` r
 b2 <-ggplot(het.all.diplo.dataframe, aes(y=OBS_HET,x = reorder(GROUP, desc(GROUP))))+
   geom_violin(aes(color=GROUP),alpha=0.75) +
   #stat_summary(fun=mean, geom="point", shape=23, size=4)+
@@ -1015,13 +1243,9 @@ b2 <-ggplot(het.all.diplo.dataframe, aes(y=OBS_HET,x = reorder(GROUP, desc(GROUP
   xlab("Genome")+ guides(color = "none", fill="none")+ 
   theme_classic() +
   labs(y="Heterozygosity") +theme(axis.title.y = element_markdown())
-
 ```
 
-
-
-```{r}
-
+``` r
 mvhet.d <- het.all.diplo.dataframe[which(het.all.diplo.dataframe$GROUP == "MASKED" ),]
 ovhet.d <- het.all.diplo.dataframe[which(het.all.diplo.dataframe$GROUP == "ORIGINAL" ),]
 mvhet.d <- mvhet.d %>% dplyr::rename(MASK_HET= OBS_HET)
@@ -1033,20 +1257,38 @@ o.m.het.d <- join(mvhet.d,ovhet.d, by =c("CHROM", "BIN_START"),type="full")
 o.m.het.d$DIFF <- o.m.het.d$ORIG_HET - o.m.het.d$MASK_HET
 
 het.all.diplo.dataframe %>% t_test(formula = OBS_HET ~ GROUP, alternative = "two.sided",order = c("MASKED", "ORIGINAL"))
+```
 
+    ## # A tibble: 1 × 7
+    ##   statistic  t_df  p_value alternative estimate lower_ci upper_ci
+    ##       <dbl> <dbl>    <dbl> <chr>          <dbl>    <dbl>    <dbl>
+    ## 1      18.1 5980. 1.47e-71 two.sided     0.0203   0.0181   0.0225
+
+``` r
 het.all.diplo.dataframe %>% t_test(formula = OBS_HET ~ GROUP, alternative = "greater", order = c("MASKED", "ORIGINAL"))
+```
 
+    ## # A tibble: 1 × 7
+    ##   statistic  t_df  p_value alternative estimate lower_ci upper_ci
+    ##       <dbl> <dbl>    <dbl> <chr>          <dbl>    <dbl>    <dbl>
+    ## 1      18.1 5980. 7.36e-72 greater       0.0203   0.0185      Inf
+
+``` r
 group_by(het.all.diplo.dataframe, GROUP) %>%
   dplyr::summarise(
     count = n(),
     mean = mean(OBS_HET, na.rm = TRUE),
     sd = sd(OBS_HET, na.rm = TRUE),
     se=std.error(OBS_HET, na.rm = TRUE) )
-
 ```
 
+    ## # A tibble: 2 × 5
+    ##   GROUP    count  mean     sd       se
+    ##   <fct>    <int> <dbl>  <dbl>    <dbl>
+    ## 1 MASKED    7453 0.142 0.0394 0.000456
+    ## 2 ORIGINAL  4256 0.121 0.0668 0.00102
 
-```{r, message=FALSE, warning=FALSE}
+``` r
 SNP<-c(1:(nrow(o.m.het.d)))
 mydf<-data.frame(SNP,o.m.het.d)
 mydf$CHR <- mydf$CHROM
@@ -1154,17 +1396,16 @@ md4 <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt),size=(0
 png(filename="MvO.all.Hetero.diplo.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
 (m3/m2/md4 | b2) +plot_layout(widths = c(4, 1))
 dev.off()
-
-
 ```
 
-
+    ## png 
+    ##   2
 
 ### Calculate FST
 
 #### OutFlank
-```{bash eval = FALSE}
 
+``` bash
 bcftools view  --threads 40 -S ../other_files/filter.set SNP.ORIG.TRSdp5g75.nDNA.g1.maf05.max2alleles.FIL.vcf.gz |  bcftools +fill-tags| bcftools view -i 'F_MISSING==0 & MAF > 0.05'  -O z -o SNP.ORIGINAL.noinbred.TRSdp5g75.nDNA.g1.maf05.max2alleles.nomissing.FIL.vcf.gz
 
 bcftools view  --threads 40 -S ../other_files/filter.set SNP.MASKED.TRSdp5g75.nDNA.g1.maf05.max2alleles.FIL.vcf.gz |  bcftools +fill-tags| bcftools view -i 'F_MISSING==0 & MAF > 0.05'  -O z -o SNP.MASKED.noinbred.TRSdp5g75.nDNA.g1.maf05.max2alleles.nomissing.FIL.vcf.gz
@@ -1179,21 +1420,17 @@ plink2 --vcf SNP.MASKED.noinbred.TRSdp5g75.nDNA.g1.maf05.max2alleles.nomissing.F
 
 plink2 --vcf SNP.MASKED.wildAE.g1.maf05.max2alleles.FIL.vcf.gz --make-bed --out MASKED.wildAE --allow-extra-chr
 plink2 --vcf SNP.ORIGINAL.wildAE.g1.maf05.max2alleles.FIL.vcf.gz --make-bed --out ORIGINAL.wildAE --allow-extra-chr
-
-
 ```
 
-
-```{r}
+``` r
 rds.m.ni <- snp_readBed("Masked.NoInbred.bed", backingfile = tempfile())
 rds.o.ni <- snp_readBed("Original.NoInbred.bed", backingfile = tempfile())
 # Atlantic Wild Subset
 rds.o.wae <- snp_readBed("ORIGINAL.wildAE.bed", backingfile = tempfile())
 rds.m.wae <- snp_readBed("MASKED.wildAE.bed", backingfile = tempfile())
-
 ```
 
-```{r}
+``` r
 masked_all.m.ni<- snp_attach(rds.m.ni)
 G.m.ni <- masked_all.m.ni$genotypes
 CHR.m.ni <- masked_all.m.ni$map$chromosome
@@ -1215,21 +1452,86 @@ original_wildAE <- snp_attach(rds.o.wae)
 G.o.wae <- original_wildAE$genotypes
 CHR.o.wae <- original_wildAE$map$chromosome
 POS.o.wae <- original_wildAE$map$physical.pos
-
 ```
 
-```{r eval=TRUE}
+``` r
 svd.m.ni <- snp_autoSVD(G.m.ni, as.integer(factor(CHR.m.ni)), POS.m.ni, ncores = NCORES,min.mac = 7, size=10)
-svd.o.ni <- snp_autoSVD(G.o.ni, as.integer(factor(CHR.o.ni)), POS.o.ni, ncores = NCORES, min.mac = 7, size=10)
+```
 
+    ## 
+    ## Phase of clumping (on MAF) at r^2 > 0.2.. keep 1049202 SNPs.
+    ## Discarding 0 variant with MAC < 7.
+    ## 
+    ## Iteration 1:
+    ## Computing SVD..
+    ## 0 outlier variant detected..
+    ## 
+    ## Converged!
+
+``` r
+svd.o.ni <- snp_autoSVD(G.o.ni, as.integer(factor(CHR.o.ni)), POS.o.ni, ncores = NCORES, min.mac = 7, size=10)
+```
+
+    ## 
+    ## Phase of clumping (on MAF) at r^2 > 0.2.. keep 722108 SNPs.
+    ## Discarding 0 variant with MAC < 7.
+    ## 
+    ## Iteration 1:
+    ## Computing SVD..
+    ## 0 outlier variant detected..
+    ## 
+    ## Converged!
+
+``` r
 # Atlantic Wild Subset
 svd.m.wildae <- snp_autoSVD(G.m.wae, as.integer(factor(CHR.m.wae)), POS.m.wae, ncores = NCORES, min.mac =4,size=10)
-svd.o.wae <- snp_autoSVD(G.o.wae, as.integer(factor(CHR.o.wae)), POS.o.wae, ncores = NCORES, min.mac =4,size=10)
-
-
 ```
 
-```{eval=TRUE}
+    ## 
+    ## Phase of clumping (on MAF) at r^2 > 0.2.. keep 635067 SNPs.
+    ## Discarding 0 variant with MAC < 4.
+    ## 
+    ## Iteration 1:
+    ## Computing SVD..
+    ## 2994 outlier variants detected..
+    ## 49 long-range LD regions detected..
+    ## 
+    ## Iteration 2:
+    ## Computing SVD..
+    ## 17 outlier variants detected..
+    ## 0 long-range LD region detected..
+    ## 
+    ## Iteration 3:
+    ## Computing SVD..
+    ## 0 outlier variant detected..
+    ## 
+    ## Converged!
+
+``` r
+svd.o.wae <- snp_autoSVD(G.o.wae, as.integer(factor(CHR.o.wae)), POS.o.wae, ncores = NCORES, min.mac =4,size=10)
+```
+
+    ## 
+    ## Phase of clumping (on MAF) at r^2 > 0.2.. keep 446955 SNPs.
+    ## Discarding 0 variant with MAC < 4.
+    ## 
+    ## Iteration 1:
+    ## Computing SVD..
+    ## 2438 outlier variants detected..
+    ## 39 long-range LD regions detected..
+    ## 
+    ## Iteration 2:
+    ## Computing SVD..
+    ## 31 outlier variants detected..
+    ## 1 long-range LD region detected..
+    ## 
+    ## Iteration 3:
+    ## Computing SVD..
+    ## 0 outlier variant detected..
+    ## 
+    ## Converged!
+
+```
 write(paste(CHR.m.ni[attr(svd.m.ni, "subset")],
             POS.m.ni[attr(svd.m.ni, "subset")], sep='\t'),
       "NoInbredLociLocationsAfterThinning.maskedPCs.txt")
@@ -1242,11 +1544,9 @@ write(paste(CHR.o.wae[attr(svd.o.wae, "subset")],
             POS.o.wae[attr(svd.o.wae, "subset")], sep='\t'),
       "WildAELociLocationsAfterThinningOriginalPCs.txt")
 
-
 ```
 
-```{bash eval = FALSE}
-
+``` bash
 cut -f1 NoInbredLociLocationsAfterThinning.maskedPCs.txt| uniq | parallel "grep {} NoInbredLociLocationsAfterThinning.maskedPCs.txt | shuf  2>/dev/null | shuf 2>/dev/null | shuf 2>/dev/null| head -5000" >> random.50k.masked.snps
 
 cut -f1 Original.NoInbredLociLocationsAfterThinning.maskedPCs.txt | grep -v NA| uniq | parallel "grep {} Original.NoInbredLociLocationsAfterThinning.maskedPCs.txt | shuf  2>/dev/null | shuf 2>/dev/null | shuf 2>/dev/null| head -5000" >> random.50k.original.snps
@@ -1275,16 +1575,13 @@ plink2 --vcf Random.50k.SNP.ORIGINAL.noinbred.g1.maf05.max2alleles.FIL.vcf.gz --
 
 plink2 --vcf Random.50k.SNP.MASKED.wildAE.g1.maf05.max2alleles.FIL.vcf.gz --make-bed --out Random.50k.Masked.WildAE --allow-extra-chr
 plink2 --vcf Random.50k.SNP.ORIGINAL.wildAE.g1.maf05.max2alleles.FIL.vcf.gz --make-bed --out Random.50k.Original.WildAE --allow-extra-chr
-
-
 ```
 
-The code below runs the *FST* calculations.  This takes some time, so only run once and save the data.  It can be loaded for subsequent use and sessions.
+The code below runs the *FST* calculations. This takes some time, so
+only run once and save the data. It can be loaded for subsequent use and
+sessions.
 
-```{r eval = FALSE, include=TRUE}
-
-
-
+``` r
 rds.comp.m.random <- snp_readBed("Random.50k.masked.bed", backingfile = tempfile())
 rds.comp.o.random <- snp_readBed("Random.50k.original.bed", backingfile = tempfile())
 rds.wildAE.m.random <- snp_readBed("Random.50k.Masked.WildAE.bed", backingfile = tempfile())
@@ -1331,57 +1628,80 @@ my_fst.wildae.o.r <- MakeDiploidFSTMat(G.wildAE.o.r[], locusNames = paste0(CHR.w
 
 
 save(my_fst.comp.m, my_fst.comp.m.r, my_fst.comp.o, my_fst.comp.o.r, my_fst.wildae.m, my_fst.wildae.m.r,my_fst.wildae.o, my_fst.wildae.o.r,  file = "FST_data.RData")
-
-
 ```
 
 Load FST Data if needed
-```{r}
+
+``` r
 # To load the data again
 load("FST_data.RData")
 ```
 
-
-
-```{r}
+``` r
 out_trim.m <- OutFLANK(my_fst.comp.m.r, NumberOfSamples=13, qthreshold = 0.05, Hmin = 0.1)
 
 OutFLANKResultsPlotter(out_trim.m, withOutliers = TRUE,
                        NoCorr = TRUE, Hmin = 0.1, binwidth = 0.001, Zoom =
                          FALSE, RightZoomFraction = 0.05, titletext = NULL)
+```
 
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-61-1.png)<!-- -->
+
+``` r
 hist(out_trim.m$results$pvaluesRightTail)
+```
 
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-61-2.png)<!-- -->
 
-
+``` r
 out_trim.o <- OutFLANK(my_fst.comp.o.r, NumberOfSamples=13, qthreshold = 0.05, Hmin = 0.1)
 
 OutFLANKResultsPlotter(out_trim.o, withOutliers = TRUE,
                        NoCorr = TRUE, Hmin = 0.1, binwidth = 0.001, Zoom =
                          FALSE, RightZoomFraction = 0.05, titletext = NULL)
+```
 
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-61-3.png)<!-- -->
+
+``` r
 hist(out_trim.o$results$pvaluesRightTail)
+```
 
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-61-4.png)<!-- -->
+
+``` r
 out_trim.m.wae <- OutFLANK(my_fst.wildae.m.r, NumberOfSamples=6, qthreshold = 0.05, Hmin = 0.1)
 
 OutFLANKResultsPlotter(out_trim.m.wae, withOutliers = TRUE,
                        NoCorr = TRUE, Hmin = 0.2, binwidth = 0.001, Zoom =
                          FALSE, RightZoomFraction = 0.05, titletext = NULL)
+```
 
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-61-5.png)<!-- -->
+
+``` r
 hist(out_trim.m.wae$results$pvaluesRightTail)
+```
 
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-61-6.png)<!-- -->
+
+``` r
 out_trim.o.wae <- OutFLANK(my_fst.wildae.o.r, NumberOfSamples=6, qthreshold = 0.05, Hmin = 0.1)
 
 OutFLANKResultsPlotter(out_trim.o.wae, withOutliers = TRUE,
                        NoCorr = TRUE, Hmin = 0.2, binwidth = 0.001, Zoom =
                          FALSE, RightZoomFraction = 0.05, titletext = NULL)
-
-hist(out_trim.o.wae$results$pvaluesRightTail)
-
-
 ```
 
-```{r}
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-61-7.png)<!-- -->
+
+``` r
+hist(out_trim.o.wae$results$pvaluesRightTail)
+```
+
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-61-8.png)<!-- -->
+
+``` r
 qthres <- 0.05
 
 P1.m <- pOutlierFinderChiSqNoCorr(my_fst.comp.m, Fstbar = out_trim.m$FSTNoCorrbar, 
@@ -1389,36 +1709,40 @@ P1.m <- pOutlierFinderChiSqNoCorr(my_fst.comp.m, Fstbar = out_trim.m$FSTNoCorrba
 
 P1.m <- P1.m[order(as.numeric(rownames(P1.m))),,drop=FALSE]                  
 hist(P1.m$pvaluesRightTail)
+```
 
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-62-1.png)<!-- -->
 
-
+``` r
 P1.o <- pOutlierFinderChiSqNoCorr(my_fst.comp.o, Fstbar = out_trim.o$FSTNoCorrbar, 
                                    dfInferred = out_trim.o$dfInferred, qthreshold = qthres, Hmin=0.1)
 
 P1.o <- P1.o[order(as.numeric(rownames(P1.o))),,drop=FALSE]                  
 hist(P1.o$pvaluesRightTail)
+```
 
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-62-2.png)<!-- -->
+
+``` r
 P1.m.wae <- pOutlierFinderChiSqNoCorr(my_fst.wildae.m, Fstbar = out_trim.m.wae$FSTNoCorrbar, 
                                    dfInferred = out_trim.m.wae$dfInferred, qthreshold = qthres, Hmin=0.1)
 
 P1.m.wae <- P1.m.wae[order(as.numeric(rownames(P1.m.wae))),,drop=FALSE]                  
 hist(P1.m.wae$pvaluesRightTail)
+```
 
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-62-3.png)<!-- -->
+
+``` r
 P1.o.wae <- pOutlierFinderChiSqNoCorr(my_fst.wildae.o, Fstbar = out_trim.o.wae$FSTNoCorrbar, dfInferred = out_trim.o.wae$dfInferred, qthreshold = qthres, Hmin=0.1)
 
 P1.o.wae <- P1.o.wae[order(as.numeric(rownames(P1.o.wae))),,drop=FALSE]                  
 hist(P1.o.wae$pvaluesRightTail)
-
-               
-
 ```
 
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-62-4.png)<!-- -->
 
-
-
-
-
-```{r}
+``` r
 m.plot.df<- setNames(data.frame(matrix(ncol = 7, nrow = length(my_fst.comp.m$LocusName))), c("CHR", "CHRR", "BP", "SNP", "P", "Q", "Outlier"))
 m.plot.df$CHR <-as.integer(as.factor(CHR.m.ni))
 m.plot.df$CHRR <- CHR.m.ni
@@ -1463,13 +1787,9 @@ o.wae.plot.df$Q <- P1.o.wae$qvalues
 o.wae.plot.df$F <- P1.o.wae$FST
 o.wae.plot.df$Outlier <- P1.o.wae$OutlierFlag
 o.wae.plot.df <- o.wae.plot.df[which(o.wae.plot.df$Outlier == TRUE | o.wae.plot.df$Outlier == FALSE),]
-
-
-
 ```
 
-
-```{r eval=FALSE}
+``` r
 withr::with_options(c(scipen = 10), write(paste(m.plot.df$CHRR,m.plot.df$BP-1,m.plot.df$BP,m.plot.df$F,m.plot.df$Outlier, sep='\t'),
       "Masked_NoInbred_FST_Outflank.bed"))
 
@@ -1482,10 +1802,9 @@ withr::with_options(c(scipen = 10),write(paste(m.wae.plot.df$CHRR,m.wae.plot.df$
 
 withr::with_options(c(scipen = 10),write(paste(o.wae.plot.df$CHRR,o.wae.plot.df$BP-1,o.wae.plot.df$BP,o.wae.plot.df$F,o.wae.plot.df$Outlier, sep='\t'),
       "Original_WildAE_FST_Outflank.bed"))
-
 ```
 
-```{bash eval = FALSE}
+``` bash
 bedtools intersect -b <(sort -k 1,1 -k2,2n Masked_NoInbred_FST_Outflank.bed) -a <(sort -k 1,1 -k2,2n 10kb.bed) -wa -wb -sorted  |bedtools merge -d -1 -c 7,8 -o mean,distinct | mawk '{ if ($0 ~ /TRUE/) {print $1 "\t" $2 "\t" $3 "\t" $4 "\tTRUE"} else {print $0}}' > masked.OF_fst.10kb.bed
 
 
@@ -1518,11 +1837,9 @@ sed -i '1 s/MASKED/GROUP/' total.all.OF.fsts
 
 cat <(mawk '{print $0 "\tMASKED"}' Masked_WildAE_FST_Outflank.bed.txt) <(mawk '{if (NR>1)print $0 "\tORIGINAL"}' Original_WildAE_FST_Outflank.bed.txt) > total.wildae.OF.fsts
 sed -i '1 s/MASKED/GROUP/' total.wildae.OF.fsts
-
 ```
 
-
-```{bash}
+``` bash
 grep TRUE Original_NoInbred_FST_Outflank.bed > Orig.outlier.bed
 echo "Number of Original Outliers"
 cat Orig.outlier.bed | wc -l
@@ -1551,9 +1868,35 @@ bedtools intersect -a original.wildae.outliers.bed -b ../Haplotig_Masking/haplot
 echo "Wild AE Outliers from orginal genome that are no longer significant in Masked"
 bedtools intersect -a original.wildae.outliers.bed -b Masked_WildAE_FST_Outflank.bed -wb | grep FALSE | wc -l
 ```
+
+    ## Number of Original Outliers
+    ## 158057
+    ## Number of Masked Genome Outliers
+    ## 257823
+    ## Outliers from orginal genome present in masked genome
+    ## 156025
+    ## Outliers from orginal genome not present in masked genome
+    ## 2032
+    ## Outliers from orginal genome present in masked haplotigs
+    ## 1249
+    ## Outliers from orginal genome that are no longer significant in Masked
+    ## 234
+    ## Number of Original Wild AE Outliers
+    ## 27721
+    ## Number of Masked Wild AE Outliers
+    ## 38712
+    ## Wild AE Outliers from orginal genome present in masked genome
+    ## 27461
+    ## Wild AE Outliers from orginal genome not present in masked genome
+    ## 260
+    ## Wild AE Outliers from orginal genome present in masked haplotigs
+    ## 122
+    ## Wild AE Outliers from orginal genome that are no longer significant in Masked
+    ## 58
+
 ### Compare Fst
 
-```{r}
+``` r
 fst.all.dataframe<-read.table("total.all.OF.fsts", sep="\t", header=T)
 fst.all.dataframe$GROUP <- factor(fst.all.dataframe$GROUP, levels=c("MASKED", "ORIGINAL" ))
 mfst <- read.table("masked.OF_fst.10kb.txt", header = TRUE)
@@ -1568,7 +1911,7 @@ o.m.fst <- join(mfst,ofst, by =c("CHROM", "BIN_START"),type="full")
 o.m.fst$DIFF <- o.m.fst$ORIG_FST - o.m.fst$MASK_FST
 ```
 
-```{r}
+``` r
 b2 <-ggplot(read.table("total.all.OF.10kb.fsts", sep="\t", header=T), aes(y=WEIGHTED_FST,x = reorder(GROUP, desc(GROUP))))+
   geom_violin(aes(color=GROUP,fill= GROUP)) +
   geom_boxplot(aes(fill=GROUP), width=0.25, outlier.shape = 21)+
@@ -1578,26 +1921,42 @@ b2 <-ggplot(read.table("total.all.OF.10kb.fsts", sep="\t", header=T), aes(y=WEIG
   xlab("Genome")+ guides(color = "none", fill="none")+
   theme_classic() + 
   labs(y="*F<sub>ST</sub>*") +theme(axis.title.y = element_markdown())
-
-
 ```
 
-```{r}
+``` r
 fst.all.dataframe %>% t_test(formula = WEIGHTED_FST ~ GROUP, alternative = "two-sided", order = c("MASKED", "ORIGINAL"))
+```
 
+    ## # A tibble: 1 × 7
+    ##   statistic     t_df p_value alternative estimate lower_ci upper_ci
+    ##       <dbl>    <dbl>   <dbl> <chr>          <dbl>    <dbl>    <dbl>
+    ## 1     -49.2 6995427.       0 two.sided   -0.00416 -0.00433 -0.00400
+
+``` r
 fst.all.dataframe %>% t_test(formula = WEIGHTED_FST ~ GROUP, alternative = "less", order = c("MASKED", "ORIGINAL"))
+```
 
+    ## # A tibble: 1 × 7
+    ##   statistic     t_df p_value alternative estimate lower_ci upper_ci
+    ##       <dbl>    <dbl>   <dbl> <chr>          <dbl>    <dbl>    <dbl>
+    ## 1     -49.2 6995427.       0 less        -0.00416     -Inf -0.00402
+
+``` r
 group_by(fst.all.dataframe, GROUP) %>%
   dplyr::summarise(
     count = n(),
     mean = mean(WEIGHTED_FST, na.rm = TRUE),
     sd = sd(WEIGHTED_FST, na.rm = TRUE),
     se=std.error(WEIGHTED_FST, na.rm = TRUE) )
-
-
 ```
 
-```{r message=FALSE, warning=FALSE}
+    ## # A tibble: 2 × 5
+    ##   GROUP      count  mean    sd        se
+    ##   <fct>      <int> <dbl> <dbl>     <dbl>
+    ## 1 MASKED   5196255 0.120 0.119 0.0000521
+    ## 2 ORIGINAL 3343100 0.124 0.122 0.0000667
+
+``` r
 SNP<-c(1:(nrow(o.m.fst)))
 mydf<-data.frame(SNP,o.m.fst)
 mydf$CHR <- mydf$CHROM
@@ -1641,8 +2000,17 @@ mydf.sig$snp <- mydf.sig$SNP
 dfm.sub <- merge(dfm,mydf.sig, by = "snp")
 
 cat("Number of Significant 10kb windows in Masked Genome")
-nrow(mydf.sig)
+```
 
+    ## Number of Significant 10kb windows in Masked Genome
+
+``` r
+nrow(mydf.sig)
+```
+
+    ## [1] 22182
+
+``` r
 m2 <-m2.total+geom_point(data=dfm.sub,shape = 17,alpha=1,size=1.5)
 
 mydf.sig1 <- mydf[which(mydf$ORIG_OUTLIER == TRUE & mydf$MASK_OUTLIER != TRUE),]
@@ -1680,8 +2048,17 @@ mydf.sig$snp <- mydf.sig$SNP
 dfm.sub <- merge(dfm,mydf.sig, by = "snp")
 
 cat("Number of Significant 10kb windows in Original Genome")
-nrow(mydf.sig)
+```
 
+    ## Number of Significant 10kb windows in Original Genome
+
+``` r
+nrow(mydf.sig)
+```
+
+    ## [1] 16864
+
+``` r
 m3 <-m3.total+geom_point(data=dfm.sub,shape = 17,alpha=1,size=1.5)
 
 
@@ -1714,25 +2091,59 @@ mydf.sig2$snp <- mydf.sig2$SNP
 dfm.sub2 <- merge(dfm,mydf.sig2, by = "snp")
 
 cat("Number of Significant 10kb windows in Original Genome that are no longer significant in Masked Genome")
-length(dfm.sub2$snp)
+```
 
+    ## Number of Significant 10kb windows in Original Genome that are no longer significant in Masked Genome
+
+``` r
+length(dfm.sub2$snp)
+```
+
+    ## [1] 39
+
+``` r
 md4 <-md4+geom_point(data=dfm.sub2,shape = 25,alpha=1,size=3, aes(fill=as.factor(chrom_alt)))+scale_fill_manual(values=c("#0072B2", "#005280"))
 
 
 #png(filename="Output/MvO.allFSTs.man.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
 (m3/m2/md4 | b2) +plot_layout(widths = c(4, 1))
+```
+
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-70-1.png)<!-- -->
+
+``` r
 #dev.off()
 ```
 
 #### Wild
 
-```{r}
+``` r
 fst.wildAE.dataframe<-read.table("total.wildae.OF.fsts", sep="\t", header=T)
 summary(fst.wildAE.dataframe)
+```
+
+    ##          CHROM           BIN_START            BIN_END         
+    ##  NC_035784.1:1685798   Min.   :       79   Min.   :       80  
+    ##  NC_035782.1: 999862   1st Qu.: 19354120   1st Qu.: 19354121  
+    ##  NC_035781.1: 982708   Median : 37616487   Median : 37616488  
+    ##  NC_035780.1: 942307   Mean   : 38757282   Mean   : 38757283  
+    ##  NC_035783.1: 906851   3rd Qu.: 55525717   3rd Qu.: 55525718  
+    ##  NC_035788.1: 533148   Max.   :104144667   Max.   :104144668  
+    ##  (Other)    :1297591                                          
+    ##   WEIGHTED_FST        OUTLIER             GROUP        
+    ##  Min.   :-0.168142   Mode :logical   MASKED  :4478201  
+    ##  1st Qu.:-0.027778   FALSE:7281832   ORIGINAL:2870064  
+    ##  Median : 0.008696   TRUE :66433                       
+    ##  Mean   : 0.026518                                     
+    ##  3rd Qu.: 0.063348                                     
+    ##  Max.   : 0.920635                                     
+    ## 
+
+``` r
 fst.wildAE.dataframe$GROUP <- factor(fst.wildAE.dataframe$GROUP, levels=c("MASKED", "ORIGINAL" ))
 ```
 
-```{r}
+``` r
 b2wae <-ggplot(read.table("total.wildae.OF.10kb.fsts", sep="\t", header=T), aes(y=WEIGHTED_FST,x = reorder(GROUP, desc(GROUP))))+
   geom_violin(aes(color=GROUP,fill= GROUP)) +
   geom_boxplot(aes(fill=GROUP), width=0.25, outlier.shape = 21)+
@@ -1742,10 +2153,9 @@ b2wae <-ggplot(read.table("total.wildae.OF.10kb.fsts", sep="\t", header=T), aes(
   labs(y="*F<sub>ST</sub>*") + 
   xlab("Genome")+ guides(color = "none", fill="none")+ 
   theme_classic() +theme(axis.title.y = element_markdown())
-
 ```
 
-```{r}
+``` r
 mfst.wae <- read.table("masked.wildae.OF_fst.10kb.bed.txt", header = TRUE)
 ofst.wae <- read.table("original.wildae.OF_fst.10kb.bed.txt", header = TRUE)
 mfst.wae <- mfst.wae %>% dplyr::rename(MASK_FST= WEIGHTED_FST)
@@ -1758,9 +2168,23 @@ o.m.fst.wae$DIFF <- o.m.fst.wae$ORIG_FST - o.m.fst.wae$MASK_FST
 
 
 fst.wildAE.dataframe %>% t_test(formula = WEIGHTED_FST ~ GROUP, alternative = "two-sided", order = c("MASKED", "ORIGINAL"))
+```
 
+    ## # A tibble: 1 × 7
+    ##   statistic     t_df   p_value alternative estimate lower_ci upper_ci
+    ##       <dbl>    <dbl>     <dbl> <chr>          <dbl>    <dbl>    <dbl>
+    ## 1     -35.6 5980814. 1.51e-277 two.sided   -0.00218 -0.00230 -0.00206
+
+``` r
 fst.wildAE.dataframe %>% t_test(formula = WEIGHTED_FST ~ GROUP, alternative = "less", order = c("MASKED", "ORIGINAL"))
+```
 
+    ## # A tibble: 1 × 7
+    ##   statistic     t_df   p_value alternative estimate lower_ci upper_ci
+    ##       <dbl>    <dbl>     <dbl> <chr>          <dbl>    <dbl>    <dbl>
+    ## 1     -35.6 5980814. 7.55e-278 less        -0.00218     -Inf -0.00208
+
+``` r
 group_by(fst.wildAE.dataframe, GROUP) %>%
   dplyr::summarise(
     count = n(),
@@ -1769,7 +2193,13 @@ group_by(fst.wildAE.dataframe, GROUP) %>%
     se=std.error(WEIGHTED_FST, na.rm = TRUE) )
 ```
 
-```{r message=FALSE, warning=FALSE}
+    ## # A tibble: 2 × 5
+    ##   GROUP      count   mean     sd        se
+    ##   <fct>      <int>  <dbl>  <dbl>     <dbl>
+    ## 1 MASKED   4478201 0.0257 0.0793 0.0000375
+    ## 2 ORIGINAL 2870064 0.0278 0.0818 0.0000483
+
+``` r
 SNP<-c(1:(nrow(o.m.fst.wae)))
 mydf<-data.frame(SNP,o.m.fst.wae)
 mydf$CHR <- mydf$CHROM
@@ -1813,8 +2243,17 @@ mydf.sig$snp <- mydf.sig$SNP
 dfm.sub <- merge(dfm,mydf.sig, by = "snp")
 
 cat("Number of Significant 10kb windows in Masked Genome")
-nrow(mydf.sig)
+```
 
+    ## Number of Significant 10kb windows in Masked Genome
+
+``` r
+nrow(mydf.sig)
+```
+
+    ## [1] 4993
+
+``` r
 m2.wae <-m2.wae.total+geom_point(data=dfm.sub,shape = 17,alpha=1,size=1.5)
 
 mydf.sig1 <- mydf[which(mydf$ORIG_OUTLIER == TRUE & mydf$MASK_OUTLIER != TRUE),]
@@ -1852,8 +2291,17 @@ mydf.sig$snp <- mydf.sig$SNP
 dfm.sub <- merge(dfm,mydf.sig, by = "snp")
 
 cat("Number of Significant 10kb windows in Original Genome")
-nrow(mydf.sig)
+```
 
+    ## Number of Significant 10kb windows in Original Genome
+
+``` r
+nrow(mydf.sig)
+```
+
+    ## [1] 3825
+
+``` r
 m3.wae <-m3.wae.total+geom_point(data=dfm.sub,shape = 17,alpha=1,size=1.5)
 
 
@@ -1886,20 +2334,33 @@ mydf.sig2$snp <- mydf.sig2$SNP
 dfm.sub2 <- merge(dfm,mydf.sig2, by = "snp")
 
 cat("Number of Significant 10kb windows in Original Genome that are no longer significant in Masked Genome")
-length(dfm.sub2$snp)
+```
 
+    ## Number of Significant 10kb windows in Original Genome that are no longer significant in Masked Genome
+
+``` r
+length(dfm.sub2$snp)
+```
+
+    ## [1] 31
+
+``` r
 md4.wae <-md4.wae+geom_point(data=dfm.sub2,shape = 25,alpha=1,size=3, aes(fill=as.factor(chrom_alt)))+scale_fill_manual(values=c("#0072B2", "#005280"))
 
 
 #png(filename="Output/MvO.wildAEFSTsOF.man.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
 (m3.wae/m2.wae/md4.wae | b2wae) +plot_layout(widths = c(4, 1))
+```
+
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-74-1.png)<!-- -->
+
+``` r
 #dev.off()
 ```
 
-
-
 #### diplotig Fst
-```{bash eval = FALSE}
+
+``` bash
 bedtools intersect -a Masked_NoInbred_FST_Outflank.bed -b new_diplotigs.bed -wa > masked.OF_fst.diplo.bed
 bedtools intersect -a Original_NoInbred_FST_Outflank.bed -b new_diplotigs.bed -wa > original.OF_fst.diplo.bed
 
@@ -1939,15 +2400,12 @@ cat <(mawk '{print $0 "\tMASKED"}' masked.OF_fst.10kb.wae.diplo.bed.txt) <(mawk 
 sed -i '1 s/MASKED/GROUP/' total.all.OF.wae.diplo.10kb.fsts
 ```
 
-
-
-```{r message=FALSE, warning=FALSE}
+``` r
 fst.diplo.dataframe<-read.table("total.all.OF.diplo.fsts", sep="\t", header=T)
 fst.diplo.dataframe$GROUP <- factor(fst.diplo.dataframe$GROUP, levels=c("MASKED", "ORIGINAL" ))
-
 ```
 
-```{r message=FALSE, warning=FALSE}
+``` r
 b2 <-ggplot(read.table("total.all.OF.diplo.10kb.fsts", sep="\t", header=T), aes(y=WEIGHTED_FST,x = reorder(GROUP, desc(GROUP))))+
   geom_violin(aes(color=GROUP,fill= GROUP)) +
   geom_boxplot(aes(fill=GROUP), width=0.25, outlier.shape = 21)+
@@ -1959,7 +2417,7 @@ b2 <-ggplot(read.table("total.all.OF.diplo.10kb.fsts", sep="\t", header=T), aes(
   theme_classic() +theme(axis.title.y = element_markdown())
 ```
 
-```{r message=FALSE, warning=FALSE}
+``` r
 mfst <- read.table("masked.OF_fst.10kb.diplo.bed.txt", header = TRUE)
 ofst <- read.table("original.OF_fst.10kb.diplo.bed.txt", header = TRUE)
 mfst <- mfst %>% dplyr::rename(MASK_FST= WEIGHTED_FST)
@@ -1971,10 +2429,23 @@ o.m.diplo <- join(mfst,ofst, by =c("CHROM", "BIN_START"),type="full")
 o.m.diplo$DIFF <- o.m.diplo$ORIG_FST - o.m.diplo$MASK_FST
 
 fst.diplo.dataframe %>% t_test(formula = WEIGHTED_FST ~ GROUP, alternative = "two-sided", order = c("MASKED", "ORIGINAL"))
+```
 
+    ## # A tibble: 1 × 7
+    ##   statistic   t_df    p_value alternative estimate lower_ci upper_ci
+    ##       <dbl>  <dbl>      <dbl> <chr>          <dbl>    <dbl>    <dbl>
+    ## 1      4.81 34218. 0.00000154 two.sided    0.00291  0.00173  0.00410
+
+``` r
 fst.diplo.dataframe %>% t_test(formula = WEIGHTED_FST ~ GROUP, alternative = "greater", order = c("MASKED", "ORIGINAL"))
+```
 
+    ## # A tibble: 1 × 7
+    ##   statistic   t_df     p_value alternative estimate lower_ci upper_ci
+    ##       <dbl>  <dbl>       <dbl> <chr>          <dbl>    <dbl>    <dbl>
+    ## 1      4.81 34218. 0.000000771 greater      0.00291  0.00192      Inf
 
+``` r
 group_by(fst.diplo.dataframe, GROUP) %>%
   dplyr::summarise(
     count = n(),
@@ -1983,7 +2454,13 @@ group_by(fst.diplo.dataframe, GROUP) %>%
     se=std.error(WEIGHTED_FST, na.rm = TRUE) )
 ```
 
-```{r message=FALSE, warning=FALSE}
+    ## # A tibble: 2 × 5
+    ##   GROUP      count  mean    sd        se
+    ##   <fct>      <int> <dbl> <dbl>     <dbl>
+    ## 1 MASKED   1239850 0.109 0.108 0.0000971
+    ## 2 ORIGINAL   32488 0.106 0.108 0.000598
+
+``` r
 SNP<-c(1:(nrow(o.m.diplo)))
 mydf<-data.frame(SNP,o.m.diplo)
 mydf$CHR <- mydf$CHROM
@@ -2027,7 +2504,11 @@ mydf.sig$snp <- mydf.sig$SNP
 dfm.sub <- merge(dfm,mydf.sig, by = "snp")
 
 nrow(mydf.sig)
+```
 
+    ## [1] 4527
+
+``` r
 m2 <-m2.total+geom_point(data=dfm.sub,shape = 17,alpha=1,size=1.5)
 
 mydf.sig1 <- mydf[which(mydf$ORIG_OUTLIER == TRUE & mydf$MASK_OUTLIER != TRUE),]
@@ -2065,7 +2546,11 @@ mydf.sig$snp <- mydf.sig$SNP
 dfm.sub <- merge(dfm,mydf.sig, by = "snp")
 
 nrow(mydf.sig)
+```
 
+    ## [1] 483
+
+``` r
 m3 <-m3.total+geom_point(data=dfm.sub,shape = 17,alpha=1,size=1.5)
 
 
@@ -2104,18 +2589,22 @@ md4 <-md4+geom_point(data=dfm.sub2,shape = 25,alpha=1,size=2, aes(fill=as.factor
 
 #png(filename="Output/MvO.allFSTs.diplo.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
 (m3/m2/md4 | b2) +plot_layout(widths = c(4, 1))
-#dev.off()
+```
 
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-79-1.png)<!-- -->
+
+``` r
+#dev.off()
 ```
 
 #### Wild AE Diplo
-```{r message=FALSE, warning=FALSE}
+
+``` r
 fst.wae.diplo.dataframe<-read.table("total.all.OF.wae.diplo.fsts", sep="\t", header=T)
 fst.wae.diplo.dataframe$GROUP <- factor(fst.wae.diplo.dataframe$GROUP, levels=c("MASKED", "ORIGINAL" ))
-
 ```
 
-```{r message=FALSE, warning=FALSE}
+``` r
 b2 <-ggplot(read.table("total.all.OF.wae.diplo.10kb.fsts", sep="\t", header=T), aes(y=WEIGHTED_FST,x = reorder(GROUP, desc(GROUP))))+
   geom_violin(aes(color=GROUP,fill= GROUP)) +
   geom_boxplot(aes(fill=GROUP), width=0.25, outlier.shape = 21)+
@@ -2127,7 +2616,7 @@ b2 <-ggplot(read.table("total.all.OF.wae.diplo.10kb.fsts", sep="\t", header=T), 
   theme_classic() +theme(axis.title.y = element_markdown())
 ```
 
-```{r message=FALSE, warning=FALSE}
+``` r
 mfst <- read.table("masked.OF_fst.10kb.wae.diplo.bed.txt", header = TRUE)
 ofst <- read.table("original.OF_fst.10kb.wae.diplo.bed.txt", header = TRUE)
 mfst <- mfst %>% dplyr::rename(MASK_FST= WEIGHTED_FST)
@@ -2139,10 +2628,23 @@ o.m.wae.diplo <- join(mfst,ofst, by =c("CHROM", "BIN_START"),type="full")
 o.m.wae.diplo$DIFF <- o.m.wae.diplo$ORIG_FST - o.m.wae.diplo$MASK_FST
 
 fst.wae.diplo.dataframe %>% t_test(formula = WEIGHTED_FST ~ GROUP, alternative = "two-sided", order = c("MASKED", "ORIGINAL"))
+```
 
+    ## # A tibble: 1 × 7
+    ##   statistic   t_df p_value alternative estimate  lower_ci upper_ci
+    ##       <dbl>  <dbl>   <dbl> <chr>          <dbl>     <dbl>    <dbl>
+    ## 1     0.779 29282.   0.436 two.sided   0.000336 -0.000510  0.00118
+
+``` r
 fst.wae.diplo.dataframe %>% t_test(formula = WEIGHTED_FST ~ GROUP, alternative = "greater", order = c("MASKED", "ORIGINAL"))
+```
 
+    ## # A tibble: 1 × 7
+    ##   statistic   t_df p_value alternative estimate  lower_ci upper_ci
+    ##       <dbl>  <dbl>   <dbl> <chr>          <dbl>     <dbl>    <dbl>
+    ## 1     0.779 29282.   0.218 greater     0.000336 -0.000374      Inf
 
+``` r
 group_by(fst.wae.diplo.dataframe, GROUP) %>%
   dplyr::summarise(
     count = n(),
@@ -2151,7 +2653,13 @@ group_by(fst.wae.diplo.dataframe, GROUP) %>%
     se=std.error(WEIGHTED_FST, na.rm = TRUE) )
 ```
 
-```{r message=FALSE, warning=FALSE}
+    ## # A tibble: 2 × 5
+    ##   GROUP      count   mean     sd        se
+    ##   <fct>      <int>  <dbl>  <dbl>     <dbl>
+    ## 1 MASKED   1084517 0.0191 0.0706 0.0000678
+    ## 2 ORIGINAL   27858 0.0187 0.0712 0.000427
+
+``` r
 SNP<-c(1:(nrow(o.m.wae.diplo)))
 mydf<-data.frame(SNP,o.m.wae.diplo)
 mydf$CHR <- mydf$CHROM
@@ -2195,7 +2703,11 @@ mydf.sig$snp <- mydf.sig$SNP
 dfm.sub <- merge(dfm,mydf.sig, by = "snp")
 
 nrow(mydf.sig)
+```
 
+    ## [1] 860
+
+``` r
 m2 <-m2.total+geom_point(data=dfm.sub,shape = 17,alpha=1,size=1.5)
 
 mydf.sig1 <- mydf[which(mydf$ORIG_OUTLIER == TRUE & mydf$MASK_OUTLIER != TRUE),]
@@ -2233,7 +2745,11 @@ mydf.sig$snp <- mydf.sig$SNP
 dfm.sub <- merge(dfm,mydf.sig, by = "snp")
 
 nrow(mydf.sig)
+```
 
+    ## [1] 55
+
+``` r
 m3 <-m3.total+geom_point(data=dfm.sub,shape = 17,alpha=1,size=1.5)
 
 
@@ -2272,16 +2788,17 @@ md4 <-md4+geom_point(data=dfm.sub2,shape = 25,alpha=1,size=2, aes(fill=as.factor
 
 #png(filename="Output/MvO.allFSTs.WAE.diplo.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
 (m3/m2/md4 | b2) +plot_layout(widths = c(4, 1))
-#dev.off()
-
 ```
 
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-83-1.png)<!-- -->
 
-
+``` r
+#dev.off()
+```
 
 ## Chromsome by Chromosome Plots
 
-```{bash}
+``` bash
 paste ORIG.snps.maf01.per.10kb.bed MASKED.snps.maf01.per.10kb.bed | mawk '{print $1 "\t" $2 "\t" $3 "\t" $8 - $4 }' > Test.diff.01.bed
 ln -s ../other_files/sorted.exons.per.10kb.bed .
 
@@ -2289,12 +2806,32 @@ ln -s ../other_files/sorted.exons.per.10kb.bed .
 cat <(echo -e "chrom \t start \t end \t counts \t dataset") <(mawk '{print $0 "\tORIG_SNPS"}' ORIG.snps.maf01.per.10kb.bed ) <(mawk '{print $0 "\tMASK_SNPS"}'  MASKED.snps.maf01.per.10kb.bed ) <(mawk '{print $0 "\texons"}' sorted.exons.per.10kb.bed ) <(mawk '{print $1 "\t" $2 "\t" $3 "\t" $4 "\tMASKCov"}'  10kb.masked.cov.bed ) <(mawk '{print $0 "\tORIGCov"}'  10kb.original.cov.bed )  <(mawk '{print $1 "\t" $2 "\t" $3 "\t" $5 "\tMASK_HET"}' MASK.het.01.per10kb.bed) <(mawk '{print $1 "\t" $2 "\t" $3 "\t" $5 "\tORIG_HET"}' ORIG.het.01.per10kb.bed) <(mawk '{print $1 "\t" $2 "\t" $3 "\t" $4 "\tORIG_FST"}'  original.OF_fst.10kb.bed ) <(mawk '{print $1 "\t" $2 "\t" $3 "\t" $4 "\tMASK_FST"}'  masked.OF_fst.10kb.bed ) <(mawk '{print $1 "\t" $2 "\t" $3 "\t" $4 "\tSNPDIFF"}'  Test.diff.01.bed ) <(mawk '{print $1 "\t" $2 "\t" $3 "\t" $5 "\tMASK_PI"}'  masked.pi.10kb.bed ) <(mawk '{print $1 "\t" $2 "\t" $3 "\t" $5 "\tORIG_PI"}'  original.pi.10kb.bed ) > tidyCOMP.bed
 ```
 
+    ## ln: failed to create symbolic link ‘./sorted.exons.per.10kb.bed’: File exists
 
-```{r message=FALSE, warning=FALSE}
+``` r
 tidy1COMP<- read.table("tidyCOMP.bed", sep="\t", header=T)
 
 summary(tidy1COMP)
+```
 
+    ##          chrom            start                end           
+    ##  NC_035784.1:103105   Min.   :        0   Min.   :     9999  
+    ##  NC_035788.1: 83773   1st Qu.: 17590000   1st Qu.: 17600000  
+    ##  NC_035782.1: 75760   Median : 35320000   Median : 35330000  
+    ##  NC_035780.1: 66804   Mean   : 37535072   Mean   : 37545071  
+    ##  NC_035787.1: 64822   3rd Qu.: 54117500   3rd Qu.: 54127499  
+    ##  NC_035781.1: 63365   Max.   :104160000   Max.   :104168038  
+    ##  (Other)    :177329                                          
+    ##      counts              dataset      
+    ##  Min.   : -750.00   exons    : 68478  
+    ##  1st Qu.:    0.00   MASK_SNPS: 68478  
+    ##  Median :    0.17   MASKCov  : 68478  
+    ##  Mean   :  263.66   ORIG_SNPS: 68478  
+    ##  3rd Qu.:  318.52   ORIGCov  : 68478  
+    ##  Max.   :70641.02   SNPDIFF  : 68478  
+    ##                     (Other)  :224090
+
+``` r
 tidy1COMP$dataset <- factor(tidy1COMP$dataset, levels=c("ORIG_SNPS","MASK_SNPS", "ORIGCov" , "MASKCov", "ORIG_HET", "MASK_HET", "ORIG_FST","MASK_FST", "SNPDIFF" ,"ORIG_PI", "MASK_PI" ))
 
 tidysnpsCOMP <- subset(tidy1COMP, dataset == "ORIG_SNPS" |dataset == "MASK_SNPS", select=c(chrom, start, end, counts, dataset))
@@ -2368,11 +2905,9 @@ tidyPICOMP <- tidyPICOMP %>%
 tidyFSTCOMP$counts[tidyFSTCOMP$counts < 0] <- 0
 
 tidymis <- read.table("contigs.marked.bed", sep="\t", header=T)
+```
 
-``` 
-
-```{r message=FALSE, warning=FALSE}
-
+``` r
 chromplotCOMP <- function(chrom,ncbi) {
 
 Title <- "Output/Figures/Supplemental/ChromosomeComparisons/SNPsCovHetFST"
@@ -2618,33 +3153,23 @@ dev.off()
 }
 ```
 
-
-
-```{r message=FALSE, warning=FALSE}
-
+``` r
 for(i in 1:10){
   chromplotCOMP(chroms[i],ncbis[i])
 }
 ```
 
-
-
-
-
-
-
 ## Structural Variant Divergence
-```{bash}
+
+``` bash
 cat <(echo -e "CHROM\tBIN_START\tBIN_END\tNAME\tTYPE\tLENGTH") sv.full.bed > sv.full.bed.txt
 cat <(echo -e "CHROM\tBIN_START\tBIN_END\tNAME\tTYPE\tLENGTH") sv.full.original.bed > sv.full.original.bed.txt
 
 cat <(echo -e "CHROM\tBIN_START\tBIN_END\tNAME\tTYPE\tLENGTH") sv.full.nomissing.bed > sv.full.nomissing.bed.txt
 cat <(echo -e "CHROM\tBIN_START\tBIN_END\tNAME\tTYPE\tLENGTH") sv.full.original.nomissing.bed > sv.full.original.nomissing.bed.txt
-
-
 ```
 
-```{r}
+``` r
 sv_data <- read.table("sv.full.bed.txt",header = TRUE)
 sv_data_nm <- read.table("sv.full.nomissing.bed.txt",header = TRUE)
 
@@ -2654,17 +3179,36 @@ group_by(sv_data, TYPE) %>%
     mean = mean(LENGTH, na.rm = TRUE),
     sd = sd(LENGTH, na.rm = TRUE),
     se=std.error(LENGTH, na.rm = TRUE) )%>% mutate_if(is.numeric, round, 0)
+```
 
+    ## # A tibble: 5 × 5
+    ##   TYPE   count   mean     sd    se
+    ##   <fct>  <dbl>  <dbl>  <dbl> <dbl>
+    ## 1 BND    33012      1      0     0
+    ## 2 DEL   216912    823  10412    22
+    ## 3 DUP    15347  14784  57501   464
+    ## 4 INS     7310     28      4     0
+    ## 5 INV     6808 118478 235738  2857
+
+``` r
 group_by(sv_data_nm, TYPE) %>%
   dplyr::summarise(
     count = n(),
     mean = mean(LENGTH, na.rm = TRUE),
     sd = sd(LENGTH, na.rm = TRUE),
     se=std.error(LENGTH, na.rm = TRUE) )%>% mutate_if(is.numeric, round, 0)
-
 ```
 
-```{r}
+    ## # A tibble: 5 × 5
+    ##   TYPE  count  mean     sd    se
+    ##   <fct> <dbl> <dbl>  <dbl> <dbl>
+    ## 1 BND    1153     1      0     0
+    ## 2 DEL   21158   354   5508    38
+    ## 3 DUP    1611  5996  40036   997
+    ## 4 INS     413    29      4     0
+    ## 5 INV     519 52839 155339  6819
+
+``` r
 sv_data.o <- read.table("sv.full.original.bed.txt",header = TRUE)
 sv_data_nm.o <- read.table("sv.full.original.nomissing.bed.txt",header = TRUE)
 
@@ -2674,20 +3218,45 @@ group_by(sv_data.o, TYPE) %>%
     mean = mean(LENGTH, na.rm = TRUE),
     sd = sd(LENGTH, na.rm = TRUE),
     se=std.error(LENGTH, na.rm = TRUE) )%>% mutate_if(is.numeric, round, 0)
+```
 
+    ## # A tibble: 5 × 5
+    ##   TYPE   count   mean     sd    se
+    ##   <fct>  <dbl>  <dbl>  <dbl> <dbl>
+    ## 1 BND    27838      1      0     0
+    ## 2 DEL   192011    796   9336    21
+    ## 3 DUP    13155  17358  67122   585
+    ## 4 INS     6351     28      4     0
+    ## 5 INV     7992 243679 311938  3489
+
+``` r
 group_by(sv_data_nm.o, TYPE) %>%
   dplyr::summarise(
     count = n(),
     mean = mean(LENGTH, na.rm = TRUE),
     sd = sd(LENGTH, na.rm = TRUE),
     se=std.error(LENGTH, na.rm = TRUE) )%>% mutate_if(is.numeric, round, 0)
-
 ```
-```{r}
+
+    ## # A tibble: 5 × 5
+    ##   TYPE  count  mean     sd    se
+    ##   <fct> <dbl> <dbl>  <dbl> <dbl>
+    ## 1 BND     749     1      0     0
+    ## 2 DEL   16953   355   5524    42
+    ## 3 DUP    1269  5544  38971  1094
+    ## 4 INS     336    29      4     0
+    ## 5 INV     428 57553 165983  8023
+
+``` r
 pops <- read.table("../other_files/population_coordinates.full.tab", header = TRUE)
 popind <- read.table("../other_files/popmap", header=TRUE)
 
 popmap <-join(pops,popind,type = "inner")
+```
+
+    ## Joining by: POP
+
+``` r
 popmap <- popmap[order(popmap$IND),]
 popmap$Type <- factor(popmap$Type, levels=c("Inbred","Selected","Wild"))
 popmap$POP <- factor(popmap$POP, levels=c("HI","SM","UMFS","NEH","NG", "HG","HC","CS","DEBY" ,"CLP","HC-VA","LOLA","CL","SL","OBOYS","LM"))
@@ -2750,13 +3319,9 @@ o.freq.ni <- minorAllele(orig_gen.ni)
 
 m.freq.wildAE <- minorAllele(popsub(mask_gen.ni,c("CLP","CS","HC","HC-VA","HI","SM")))
 o.freq.wildAE <- minorAllele(popsub(orig_gen.ni,c("CLP","CS","HC","HC-VA","HI","SM")))
-
-
-
 ```
 
-
-```{r}
+``` r
 mask_cn <- read.table("masked.cnv.tab",header = FALSE)
 mask_cn <- mask_cn[which(m.freq.ni > 0.025),]
 orig_cn <- read.table("original.cnv.tab",header = FALSE)
@@ -2801,11 +3366,9 @@ orig_cn$VST <- getVst(orig_cn[,-c(1,2,3)],popmap$POP,popmap.ni$POP)
 
 mask_cn$VSTWAE <- getVst(mask_cn[,-c(1,2,3,94,95)],popmap$POP,popmap.wildAE$POP)
 orig_cn$VSTWAE <- getVst(orig_cn[,-c(1,2,3,94,95)],popmap$POP,popmap.wildAE$POP)
+```
 
-```  
-  
-
-```{r}
+``` r
 mask_cnVST <- mask_cn[complete.cases(mask_cn$VST),]
 orig_cnVST <- orig_cn[complete.cases(orig_cn$VST),]
 
@@ -2820,13 +3383,31 @@ write(paste(orig_cnWAEVST$V1,orig_cnWAEVST$V2,orig_cnWAEVST$VSTWAE, sep='\t'),"o
 
 
 summary(mask_cnVST$VST)
-summary(orig_cnVST$VST)
-std.error(mask_cnVST$VST)
-std.error(orig_cnVST$VST)
-
 ```
 
-```{bash}
+    ##     Min.  1st Qu.   Median     Mean  3rd Qu.     Max. 
+    ## -0.18462 -0.01316  0.03408  0.06632  0.11397  0.91913
+
+``` r
+summary(orig_cnVST$VST)
+```
+
+    ##     Min.  1st Qu.   Median     Mean  3rd Qu.     Max. 
+    ## -0.18462 -0.01316  0.03441  0.06785  0.11494  0.91913
+
+``` r
+std.error(mask_cnVST$VST)
+```
+
+    ## [1] 0.0009162275
+
+``` r
+std.error(orig_cnVST$VST)
+```
+
+    ## [1] 0.001046909
+
+``` bash
 mawk '{print $1 "\t" $2-1 "\t" $2 "\t" $3}' masked_vst.tab > masked_vst.bed
 mawk '{print $1 "\t" $2-1 "\t" $2 "\t" $3}' original_vst.tab > original_vst.bed
 
@@ -2842,14 +3423,34 @@ cat <(echo -e "CHROM\tBIN_START\tBIN_END\tWEIGHTED_VST") original_vst.bed > orig
 cat <(echo -e "CHROM\tBIN_START\tBIN_END\tWEIGHTED_VST\tGROUP") <(mawk '{print $0 "\tMASKED"}' masked_vst.bed) <(mawk '{if (NR>1)print $0 "\tORIGINAL"}' original_vst.bed) > total.all.vsts
 ```
 
-```{r}
+``` r
 vst.all.dataframe<-read.table("total.all.vsts", sep="\t", header=T)
 #vst.all.dataframe<-read.table("total.wild.AE.vsts", sep="\t", header=T)
 summary(vst.all.dataframe)
+```
+
+    ##          CHROM        BIN_START            BIN_END           WEIGHTED_VST     
+    ##  NC_035784.1:7730   Min.   :    39607   Min.   :    39608   Min.   :-0.18462  
+    ##  NC_035782.1:4976   1st Qu.: 18572722   1st Qu.: 18572723   1st Qu.:-0.01316  
+    ##  NC_035783.1:4828   Median : 37724066   Median : 37724067   Median : 0.03415  
+    ##  NC_035780.1:4376   Mean   : 38513896   Mean   : 38513897   Mean   : 0.06700  
+    ##  NC_035781.1:4167   3rd Qu.: 55318746   3rd Qu.: 55318747   3rd Qu.: 0.11416  
+    ##  NC_035788.1:2312   Max.   :102000759   Max.   :102000760   Max.   : 0.91913  
+    ##  (Other)    :4310                                                             
+    ##       GROUP      
+    ##  MASKED  :18224  
+    ##  ORIGINAL:14475  
+    ##                  
+    ##                  
+    ##                  
+    ##                  
+    ## 
+
+``` r
 vst.all.dataframe$GROUP <- factor(vst.all.dataframe$GROUP, levels=c("MASKED", "ORIGINAL" ))
 ```
 
-```{r}
+``` r
 b2 <-ggplot(vst.all.dataframe, aes(y=WEIGHTED_VST,x = reorder(GROUP, desc(GROUP))))+
   geom_violin(aes(color=GROUP),alpha=0.75) +
   #stat_summary(fun=mean, geom="point", shape=23, size=4)+
@@ -2863,11 +3464,9 @@ b2 <-ggplot(vst.all.dataframe, aes(y=WEIGHTED_VST,x = reorder(GROUP, desc(GROUP)
   xlab("Genome")+ guides(color = "none", fill="none")+
   theme_classic() +
   labs(y="*V<sub>ST</sub>*") +theme(axis.title.y = element_markdown())
-
 ```
 
-
-```{r message=FALSE, warning=FALSE}
+``` r
 mfvst <- read.table("masked.all.windowed.weir.vst", header = TRUE)
 ofvst <- read.table("original.all.windowed.weir.vst", header = TRUE)
 mfvst <- mfvst %>% dplyr::rename(MASK_VST= WEIGHTED_VST)
@@ -2878,10 +3477,23 @@ o.m.vst <- join(mfvst,ofvst, by =c("CHROM", "BIN_START"),type="full")
 o.m.vst$DIFF <- o.m.vst$ORIG_VST - o.m.vst$MASK_VST
 
 vst.all.dataframe %>% t_test(formula = WEIGHTED_VST ~ GROUP, alternative = "two-sided", order = c("MASKED", "ORIGINAL"))
+```
 
+    ## # A tibble: 1 × 7
+    ##   statistic   t_df p_value alternative estimate lower_ci upper_ci
+    ##       <dbl>  <dbl>   <dbl> <chr>          <dbl>    <dbl>    <dbl>
+    ## 1     -1.10 30789.   0.272 two.sided   -0.00153 -0.00426  0.00120
+
+``` r
 vst.all.dataframe %>% t_test(formula = WEIGHTED_VST ~ GROUP, alternative = "greater", order = c("MASKED", "ORIGINAL"))
+```
 
+    ## # A tibble: 1 × 7
+    ##   statistic   t_df p_value alternative estimate lower_ci upper_ci
+    ##       <dbl>  <dbl>   <dbl> <chr>          <dbl>    <dbl>    <dbl>
+    ## 1     -1.10 30789.   0.864 greater     -0.00153 -0.00382      Inf
 
+``` r
 group_by(vst.all.dataframe, GROUP) %>%
   dplyr::summarise(
     count = n(),
@@ -2890,8 +3502,13 @@ group_by(vst.all.dataframe, GROUP) %>%
     se=std.error(WEIGHTED_VST, na.rm = TRUE) )
 ```
 
+    ## # A tibble: 2 × 5
+    ##   GROUP    count   mean    sd       se
+    ##   <fct>    <int>  <dbl> <dbl>    <dbl>
+    ## 1 MASKED   18224 0.0663 0.124 0.000916
+    ## 2 ORIGINAL 14475 0.0678 0.126 0.00105
 
-```{r message=FALSE, warning=FALSE}
+``` r
 SNP<-c(1:(nrow(o.m.vst)))
 mydf<-data.frame(SNP,o.m.vst)
 mydf$CHR <- mydf$CHROM
@@ -2938,7 +3555,11 @@ mydf.sig$snp <- mydf.sig$SNP
 dfm.sub <- merge(dfm,mydf.sig, by = "snp")
 
 nrow(mydf.sig)
+```
 
+    ## [1] 222
+
+``` r
 m2 <-m2.total+geom_point(data=dfm.sub,shape = 17,alpha=1,size=1.5)
 
 
@@ -2971,9 +3592,11 @@ dfm.sub <- merge(dfm,mydf1.sig, by = "snp")
 m3 <-m3.total+geom_point(data=dfm.sub,shape = 17,alpha=1,size=1.5)
 
 nrow(mydf1.sig)
+```
 
+    ## [1] 2744
 
-
+``` r
 #vstsubset<-o.m.vst[complete.cases(o.m.vst),]
 
 md4 <-ggman(mydf,chrom="CHR",bp="BIN_START",pvalue="DIFF",snp="SNP",logTransform=FALSE,sigLine=NA, relative.positions = TRUE)
@@ -3004,13 +3627,17 @@ md4 <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt),size=(0
 
 #png(filename="MvO.all.VSTs.man.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
 (m3/m2/md4 | b2) +plot_layout(widths = c(4, 1))
+```
+
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-98-1.png)<!-- -->
+
+``` r
 #dev.off()
-
-
 ```
 
 #### Wild Atlantic
-```{bash}
+
+``` bash
 mawk '{print $1 "\t" $2-1 "\t" $2 "\t" $3}' masked_wildAE_vst.tab > masked_wildae_vst.bed
 mawk '{print $1 "\t" $2-1 "\t" $2 "\t" $3}' original_wildAE_vst.tab > original_wildae_vst.bed
 
@@ -3026,14 +3653,33 @@ cat <(echo -e "CHROM\tBIN_START\tBIN_END\tWEIGHTED_VST") original_wildae_vst.bed
 cat <(echo -e "CHROM\tBIN_START\tBIN_END\tWEIGHTED_VST\tGROUP") <(mawk '{print $0 "\tMASKED"}' masked_wildae_vst.bed) <(mawk '{if (NR>1)print $0 "\tORIGINAL"}' original_wildae_vst.bed) > total.all.wae.vsts
 ```
 
-
-```{r}
+``` r
 vst.wae.all.dataframe<-read.table("total.all.wae.vsts", sep="\t", header=T)
 summary(vst.wae.all.dataframe)
+```
+
+    ##          CHROM        BIN_START            BIN_END           WEIGHTED_VST     
+    ##  NC_035784.1:6771   Min.   :    39607   Min.   :    39608   Min.   :-0.16667  
+    ##  NC_035782.1:4333   1st Qu.: 18730694   1st Qu.: 18730695   1st Qu.:-0.04545  
+    ##  NC_035783.1:4232   Median : 37846159   Median : 37846160   Median : 0.00000  
+    ##  NC_035780.1:3917   Mean   : 38628702   Mean   : 38628703   Mean   : 0.01258  
+    ##  NC_035781.1:3677   3rd Qu.: 55382584   3rd Qu.: 55382585   3rd Qu.: 0.05187  
+    ##  NC_035788.1:2077   Max.   :102000759   Max.   :102000760   Max.   : 0.77419  
+    ##  (Other)    :3901                                                             
+    ##       GROUP      
+    ##  MASKED  :16132  
+    ##  ORIGINAL:12776  
+    ##                  
+    ##                  
+    ##                  
+    ##                  
+    ## 
+
+``` r
 vst.wae.all.dataframe$GROUP <- factor(vst.wae.all.dataframe$GROUP, levels=c("MASKED", "ORIGINAL" ))
 ```
 
-```{r}
+``` r
 b2 <-ggplot(vst.wae.all.dataframe, aes(y=WEIGHTED_VST,x = reorder(GROUP, desc(GROUP))))+
   geom_violin(aes(color=GROUP),alpha=0.75) +
   #stat_summary(fun=mean, geom="point", shape=23, size=4)+
@@ -3047,11 +3693,9 @@ b2 <-ggplot(vst.wae.all.dataframe, aes(y=WEIGHTED_VST,x = reorder(GROUP, desc(GR
   xlab("Genome")+ guides(color = "none", fill="none")+
   theme_classic() +
   labs(y="*V<sub>ST</sub>*") +theme(axis.title.y = element_markdown())
-
 ```
 
-
-```{r message=FALSE, warning=FALSE}
+``` r
 mfvst <- read.table("masked.all.windowed.wae.weir.vst", header = TRUE)
 ofvst <- read.table("original.all.windowed.wae.weir.vst", header = TRUE)
 mfvst <- mfvst %>% dplyr::rename(MASK_VST= WEIGHTED_VST)
@@ -3062,10 +3706,23 @@ o.m.vst <- join(mfvst,ofvst, by =c("CHROM", "BIN_START"),type="full")
 o.m.vst$DIFF <- o.m.vst$ORIG_VST - o.m.vst$MASK_VST
 
 vst.wae.all.dataframe %>% t_test(formula = WEIGHTED_VST ~ GROUP, alternative = "two-sided", order = c("MASKED", "ORIGINAL"))
+```
 
+    ## # A tibble: 1 × 7
+    ##   statistic   t_df p_value alternative  estimate lower_ci upper_ci
+    ##       <dbl>  <dbl>   <dbl> <chr>           <dbl>    <dbl>    <dbl>
+    ## 1    -0.830 27291.   0.406 two.sided   -0.000929 -0.00312  0.00126
+
+``` r
 vst.wae.all.dataframe %>% t_test(formula = WEIGHTED_VST ~ GROUP, alternative = "greater", order = c("MASKED", "ORIGINAL"))
+```
 
+    ## # A tibble: 1 × 7
+    ##   statistic   t_df p_value alternative  estimate lower_ci upper_ci
+    ##       <dbl>  <dbl>   <dbl> <chr>           <dbl>    <dbl>    <dbl>
+    ## 1    -0.830 27291.   0.797 greater     -0.000929 -0.00277      Inf
 
+``` r
 group_by(vst.wae.all.dataframe, GROUP) %>%
   dplyr::summarise(
     count = n(),
@@ -3074,8 +3731,13 @@ group_by(vst.wae.all.dataframe, GROUP) %>%
     se=std.error(WEIGHTED_VST, na.rm = TRUE) )
 ```
 
+    ## # A tibble: 2 × 5
+    ##   GROUP    count   mean     sd       se
+    ##   <fct>    <int>  <dbl>  <dbl>    <dbl>
+    ## 1 MASKED   16132 0.0122 0.0940 0.000740
+    ## 2 ORIGINAL 12776 0.0131 0.0949 0.000840
 
-```{r message=FALSE, warning=FALSE}
+``` r
 SNP<-c(1:(nrow(o.m.vst)))
 mydf<-data.frame(SNP,o.m.vst)
 mydf$CHR <- mydf$CHROM
@@ -3122,7 +3784,11 @@ mydf.sig$snp <- mydf.sig$SNP
 dfm.sub <- merge(dfm,mydf.sig, by = "snp")
 
 nrow(mydf.sig)
+```
 
+    ## [1] 211
+
+``` r
 m2 <-m2.total+geom_point(data=dfm.sub,shape = 17,alpha=1,size=1.5)
 
 
@@ -3155,9 +3821,11 @@ dfm.sub <- merge(dfm,mydf1.sig, by = "snp")
 m3 <-m3.total+geom_point(data=dfm.sub,shape = 17,alpha=1,size=1.5)
 
 nrow(mydf1.sig)
+```
 
+    ## [1] 2558
 
-
+``` r
 #vstsubset<-o.m.vst[complete.cases(o.m.vst),]
 
 md4 <-ggman(mydf,chrom="CHR",bp="BIN_START",pvalue="DIFF",snp="SNP",logTransform=FALSE,sigLine=NA, relative.positions = TRUE)
@@ -3188,9 +3856,10 @@ md4 <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt),size=(0
 
 #png(filename="MvO.all.VSTs.man.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
 (m3/m2/md4 | b2) +plot_layout(widths = c(4, 1))
-#dev.off()
-
-
 ```
 
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-103-1.png)<!-- -->
 
+``` r
+#dev.off()
+```
