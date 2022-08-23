@@ -7,7 +7,7 @@ output: github_document
 
 
 ```{r, include=FALSE}
-knitr::opts_chunk$set(fig.width = "5600px", fig.height = "3000px" )
+knitr::opts_chunk$set(fig.width = 56, fig.height = 30 )
 ```
 ## Initial Setup
 
@@ -1284,7 +1284,7 @@ plink2 --vcf Random.50k.SNP.ORIGINAL.wildAE.g1.maf05.max2alleles.FIL.vcf.gz --ma
 
 The code below runs the *FST* calculations.  This takes some time, so only run once and save the data.  It can be loaded for subsequent use and sessions.
 
-```{r eval = FALSE, include=TRUE}
+```{r eval = FALSE, warning=FALSE}
 
 
 
@@ -1472,7 +1472,7 @@ o.wae.plot.df <- o.wae.plot.df[which(o.wae.plot.df$Outlier == TRUE | o.wae.plot.
 ```
 
 
-```{r eval=FALSE}
+```{r, eval= FALSE, message=FALSE, warning=FALSE}
 withr::with_options(c(scipen = 10), write(paste(m.plot.df$CHRR,m.plot.df$BP-1,m.plot.df$BP,m.plot.df$F,m.plot.df$Outlier, sep='\t'),
       "Masked_NoInbred_FST_Outflank.bed"))
 

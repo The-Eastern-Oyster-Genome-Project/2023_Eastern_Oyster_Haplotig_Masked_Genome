@@ -324,7 +324,7 @@ ggplot(dataframe2,aes(fill=dataset, col=dataset, alpha=dataset)) +
   theme_classic() 
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-20-1.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-21-1.png)<!-- -->
 
 ``` r
   #facet_wrap(~chrom, scales = "free") 
@@ -417,7 +417,7 @@ j2a <- j2a + geom_line(aes(y=rollmean(counts, 3, na.pad=TRUE)),size=0.5) +
 j2a  / j2 + plot_layout(heights = c(1.5,1.5), guides = "collect")
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-24-1.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-25-1.png)<!-- -->
 
 ### SNPS
 
@@ -574,7 +574,7 @@ bd <-ggplot(pi.all.dataframe, aes(x=PI,y = reorder(GROUP, desc(GROUP))))+
 bd
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-34-1.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-35-1.png)<!-- -->
 
 ``` r
 #dev.off()
@@ -733,7 +733,7 @@ md4 <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt),size=(0
 (m3/m2/md4 | bd) +plot_layout(widths = c(4, 1))
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-38-1.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-39-1.png)<!-- -->
 
 ``` r
 #dev.off()
@@ -962,7 +962,7 @@ md4 <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt),size=(0
 
     ## Warning: Removed 3250 rows containing missing values (geom_point).
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-43-1.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-44-1.png)<!-- -->
 
 ``` r
 #dev.off()
@@ -1035,7 +1035,7 @@ b2 <-ggplot(het.all.dataframe, aes(y=OBS_HET,x = reorder(GROUP, desc(GROUP))))+
 b2
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-46-1.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-47-1.png)<!-- -->
 
 ``` r
 mvhet <- read.table("MASK.het.01.per10kb.text", header = TRUE)
@@ -1187,7 +1187,7 @@ md4 <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt),size=(0
 (m3/m2/md4 | b2) +plot_layout(widths = c(4, 1))
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-48-1.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-49-1.png)<!-- -->
 
 ``` r
 #dev.off()
@@ -1394,7 +1394,7 @@ md4 <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt),size=(0
 (m3/m2/md4 | b2) +plot_layout(widths = c(4, 1))
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-53-1.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-54-1.png)<!-- -->
 
 ``` r
 #dev.off()
@@ -1644,13 +1644,13 @@ OutFLANKResultsPlotter(out_trim.m, withOutliers = TRUE,
                          FALSE, RightZoomFraction = 0.05, titletext = NULL)
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-61-1.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-62-1.png)<!-- -->
 
 ``` r
 hist(out_trim.m$results$pvaluesRightTail)
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-61-2.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-62-2.png)<!-- -->
 
 ``` r
 out_trim.o <- OutFLANK(my_fst.comp.o.r, NumberOfSamples=13, qthreshold = 0.05, Hmin = 0.1)
@@ -1660,13 +1660,13 @@ OutFLANKResultsPlotter(out_trim.o, withOutliers = TRUE,
                          FALSE, RightZoomFraction = 0.05, titletext = NULL)
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-61-3.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-62-3.png)<!-- -->
 
 ``` r
 hist(out_trim.o$results$pvaluesRightTail)
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-61-4.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-62-4.png)<!-- -->
 
 ``` r
 out_trim.m.wae <- OutFLANK(my_fst.wildae.m.r, NumberOfSamples=6, qthreshold = 0.05, Hmin = 0.1)
@@ -1676,13 +1676,13 @@ OutFLANKResultsPlotter(out_trim.m.wae, withOutliers = TRUE,
                          FALSE, RightZoomFraction = 0.05, titletext = NULL)
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-61-5.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-62-5.png)<!-- -->
 
 ``` r
 hist(out_trim.m.wae$results$pvaluesRightTail)
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-61-6.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-62-6.png)<!-- -->
 
 ``` r
 out_trim.o.wae <- OutFLANK(my_fst.wildae.o.r, NumberOfSamples=6, qthreshold = 0.05, Hmin = 0.1)
@@ -1692,13 +1692,13 @@ OutFLANKResultsPlotter(out_trim.o.wae, withOutliers = TRUE,
                          FALSE, RightZoomFraction = 0.05, titletext = NULL)
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-61-7.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-62-7.png)<!-- -->
 
 ``` r
 hist(out_trim.o.wae$results$pvaluesRightTail)
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-61-8.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-62-8.png)<!-- -->
 
 ``` r
 qthres <- 0.05
@@ -1710,7 +1710,7 @@ P1.m <- P1.m[order(as.numeric(rownames(P1.m))),,drop=FALSE]
 hist(P1.m$pvaluesRightTail)
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-62-1.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-63-1.png)<!-- -->
 
 ``` r
 P1.o <- pOutlierFinderChiSqNoCorr(my_fst.comp.o, Fstbar = out_trim.o$FSTNoCorrbar, 
@@ -1720,7 +1720,7 @@ P1.o <- P1.o[order(as.numeric(rownames(P1.o))),,drop=FALSE]
 hist(P1.o$pvaluesRightTail)
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-62-2.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-63-2.png)<!-- -->
 
 ``` r
 P1.m.wae <- pOutlierFinderChiSqNoCorr(my_fst.wildae.m, Fstbar = out_trim.m.wae$FSTNoCorrbar, 
@@ -1730,7 +1730,7 @@ P1.m.wae <- P1.m.wae[order(as.numeric(rownames(P1.m.wae))),,drop=FALSE]
 hist(P1.m.wae$pvaluesRightTail)
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-62-3.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-63-3.png)<!-- -->
 
 ``` r
 P1.o.wae <- pOutlierFinderChiSqNoCorr(my_fst.wildae.o, Fstbar = out_trim.o.wae$FSTNoCorrbar, dfInferred = out_trim.o.wae$dfInferred, qthreshold = qthres, Hmin=0.1)
@@ -1739,7 +1739,7 @@ P1.o.wae <- P1.o.wae[order(as.numeric(rownames(P1.o.wae))),,drop=FALSE]
 hist(P1.o.wae$pvaluesRightTail)
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-62-4.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-63-4.png)<!-- -->
 
 ``` r
 m.plot.df<- setNames(data.frame(matrix(ncol = 7, nrow = length(my_fst.comp.m$LocusName))), c("CHR", "CHRR", "BP", "SNP", "P", "Q", "Outlier"))
@@ -2108,7 +2108,7 @@ md4 <-md4+geom_point(data=dfm.sub2,shape = 25,alpha=1,size=3, aes(fill=as.factor
 (m3/m2/md4 | b2) +plot_layout(widths = c(4, 1))
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-70-1.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-71-1.png)<!-- -->
 
 ``` r
 #dev.off()
@@ -2351,7 +2351,7 @@ md4.wae <-md4.wae+geom_point(data=dfm.sub2,shape = 25,alpha=1,size=3, aes(fill=a
 (m3.wae/m2.wae/md4.wae | b2wae) +plot_layout(widths = c(4, 1))
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-74-1.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-75-1.png)<!-- -->
 
 ``` r
 #dev.off()
@@ -2590,7 +2590,7 @@ md4 <-md4+geom_point(data=dfm.sub2,shape = 25,alpha=1,size=2, aes(fill=as.factor
 (m3/m2/md4 | b2) +plot_layout(widths = c(4, 1))
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-79-1.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-80-1.png)<!-- -->
 
 ``` r
 #dev.off()
@@ -2789,7 +2789,7 @@ md4 <-md4+geom_point(data=dfm.sub2,shape = 25,alpha=1,size=2, aes(fill=as.factor
 (m3/m2/md4 | b2) +plot_layout(widths = c(4, 1))
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-83-1.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-84-1.png)<!-- -->
 
 ``` r
 #dev.off()
@@ -3623,7 +3623,7 @@ md4 <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt),size=(0
 (m3/m2/md4 | b2) +plot_layout(widths = c(4, 1))
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-98-1.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-99-1.png)<!-- -->
 
 ``` r
 #dev.off()
@@ -3852,7 +3852,7 @@ md4 <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt),size=(0
 (m3/m2/md4 | b2) +plot_layout(widths = c(4, 1))
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-103-1.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-104-1.png)<!-- -->
 
 ``` r
 #dev.off()
