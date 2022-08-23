@@ -1183,13 +1183,15 @@ md4 <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt),size=(0
 
 
 
-png(filename="Output/MvO.all.Hetero.man.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
+#png(filename="Output/MvO.all.Hetero.man.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
 (m3/m2/md4 | b2) +plot_layout(widths = c(4, 1))
-dev.off()
 ```
 
-    ## png 
-    ##   2
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-48-1.png)<!-- -->
+
+``` r
+#dev.off()
+```
 
 ### Heterozygosity Masked vs. Original in Diplotigs
 
@@ -1388,13 +1390,15 @@ md4 <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt),size=(0
 
 
 
-png(filename="MvO.all.Hetero.diplo.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
+#png(filename="MvO.all.Hetero.diplo.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
 (m3/m2/md4 | b2) +plot_layout(widths = c(4, 1))
-dev.off()
 ```
 
-    ## png 
-    ##   2
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-53-1.png)<!-- -->
+
+``` r
+#dev.off()
+```
 
 ### Calculate FST
 
