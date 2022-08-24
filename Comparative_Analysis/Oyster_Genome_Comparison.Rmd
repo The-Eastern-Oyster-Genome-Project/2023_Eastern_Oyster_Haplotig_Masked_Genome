@@ -562,7 +562,14 @@ mawk '$3 == "B"' maf01.concordance.diff.sites | mawk '{print $1 "\t" $2 -1 "\t" 
 
 
 cat <(head -1 maf01.concordance.diff.sites) <(mawk '$3 == "B"' maf01.concordance.diff.sites) > MvO.concordance
+mkdir -p ./Output/SNP_Concordance
+cp MvO.concordance.bed MvO.concordance ./Output/SNP_Concordance
+```
 
+```{bash}
+bedtools intersect -a MvO.concordance.bed -b new_diplotigs.bed | mawk '{sum = sum +$4} END {print 1 - sum/NR}'
+
+bedtools subtract -a MvO.concordance.bed -b new_diplotigs.bed | mawk '{sum = sum +$4} END {print 1 - sum/NR}'
 ```
 
 ```{r, message=FALSE, warning=FALSE}
@@ -596,7 +603,6 @@ mawk '!/CH/' original.all.pi.windowed.pi | mawk '{print $1 "\t" $2-1 "\t" $3-1 "
 
 ```{r, message=FALSE, warning=FALSE}
 pi.all.dataframe<-read.table("total.all.pi", sep="\t", header=T)
-summary(pi.all.dataframe)
 pi.all.dataframe$GROUP <- factor(pi.all.dataframe$GROUP, levels=c("MASKED", "ORIGINAL" ))
 ```
 
@@ -611,7 +617,15 @@ bd <-ggplot(pi.all.dataframe, aes(x=PI,y = reorder(GROUP, desc(GROUP))))+
   theme_classic() 
 #png(filename="MvO.all.PI.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
 bd
-#dev.off()
+
+bd <-ggplot(pi.all.dataframe, aes(y=PI,x = reorder(GROUP, desc(GROUP))))+
+  geom_violin(aes(color=GROUP,fill= GROUP)) +
+  geom_boxplot(aes(fill=GROUP), width=0.1,outlier.shape = 23, outlier.color = "black")+
+  stat_summary(fun=mean, geom="point", shape=23, size=2)+
+  scale_fill_manual(values=c("#7d5577", "#0072B2"))+
+  scale_color_manual(values=c("#7d5577", "#0072B2"))+
+  ylab("Genome")+
+  theme_classic() 
 ```
 
 ```{r, message=FALSE, warning=FALSE}
@@ -630,13 +644,7 @@ group_by(pi.all.dataframe, GROUP) %>%
 
 ```{r, message=FALSE, warning=FALSE}
 mudp <- ddply(pi.all.dataframe, "GROUP", summarise, grp.mean=mean(PI))
-hd<-ggplot(pi.all.dataframe, aes(x=PI))+
-  geom_histogram(aes(fill=GROUP), alpha=0.75, binwidth = 0.000025, position="identity")+
-  geom_vline(data=mudp,aes(xintercept=grp.mean, color=GROUP),
-             linetype="dashed")+
-  scale_fill_manual(values=c("#7d5577", "#0072B2"))+
-  scale_color_manual(values=c("#7d5577", "#0072B2"))+
-  theme_classic() 
+
 ```
 
 ```{r, message=FALSE, warning=FALSE}
@@ -689,7 +697,7 @@ m2.total <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt)))+
   scale_y_continuous(expand = c(0,0),limits=c(0,max(dfm$marker+0.001,na.rm=TRUE)))+
   labs(x = "Chromosome") +
   ggtitle("Masked") +theme_classic()+
-  labs(y="&pi;") +theme(axis.title.y = element_markdown())+ 
+  labs(y=expression(pi)) +
   scale_color_manual(values=c("#7d5577", "#52374e")) 
 
 m2 <-m2.total
@@ -714,7 +722,7 @@ m3.total <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt)))+
   #scale_alpha_continuous(range=c(0.1,0.95))+
   labs(x = "Chromosome") +
   ggtitle("Original") +theme_classic()+
-  labs(y="&pi;") +theme(axis.title.y = element_markdown())+ 
+  labs(y=expression(pi)) + 
   scale_color_manual(values=c("#0072B2", "#005280"))
 
 m3 <-m3.total
@@ -746,11 +754,11 @@ md4 <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt),size=(0
 
 
 
-#png(filename="Output/MvO.all.pi.man.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
+png(filename="Output/Figures/Figure.3.nucleotide.diversity.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
 (m3/m2/md4 | bd) +plot_layout(widths = c(4, 1))
-#dev.off()
+null <- dev.off()
 ```
-
+![Figure 3 Nucleotide Diversity Comparison](Output/Figures/Figure.3.nucleotide.diversity.png)
 
 #### Nucleotide Divergence in Diplotig Regions
 ```{r, message=FALSE, warning=FALSE}
@@ -769,7 +777,7 @@ bd <-ggplot(pi.diplo.dataframe, aes(y=PI,x = reorder(GROUP, desc(GROUP))))+
   #scale_y_continuous(limit=c(0,1))+
   xlab("Genome")+ guides(color = "none", fill="none")+ 
   theme_classic() +
-  labs(y="&pi;") +theme(axis.title.y = element_markdown())
+  labs(y=expression(pi)) 
 ```
 
 ```{r, message=FALSE, warning=FALSE}
@@ -834,8 +842,8 @@ m2.total <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt)))+
   guides(colour = FALSE,alpha=FALSE) +
   scale_y_continuous(expand = c(0,0),limits=c(0,0.0263))+
   labs(x = "Chromosome") +
-  ggtitle("Masked") +theme_classic()+
-  labs(y="&pi;") +theme(axis.title.y = element_markdown())+ 
+  ggtitle("Masked") +theme_classic()+ 
+  labs(y=expression(pi)) +
   scale_color_manual(values=c("#7d5577", "#52374e")) 
 
 
@@ -863,7 +871,7 @@ m3.total <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt)))+
   #scale_alpha_continuous(range=c(0.1,0.95))+
   labs(x = "Chromosome") +
   ggtitle("Original") +theme_classic()+
-  labs(y="&pi;") +theme(axis.title.y = element_markdown())+ 
+  labs(y=expression(pi)) +
   scale_color_manual(values=c("#0072B2", "#005280"))
 
 m3 <-m3.total
