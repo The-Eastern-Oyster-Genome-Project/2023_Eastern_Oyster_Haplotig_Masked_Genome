@@ -306,7 +306,7 @@ cat <(echo -e "chrom\tstart\tend\tTotal\tFiltered\tMulti\tdataset") <(mawk '{pri
 ```
 
 ![Figure 1- Coverage
-Comparison](./Output/Figures/Figure1.CoverageComparison.png)
+Comparison](./Output/Figures/Figure.1.CoverageComparison.png)
 
 ``` bash
 cd ../Masked 
@@ -2805,13 +2805,13 @@ dfm.sub2 <- merge(dfm,mydf.sig2, by = "snp")
 md4 <-md4+geom_point(data=dfm.sub2,shape = 25,alpha=1,size=2, aes(fill=as.factor(chrom_alt)))+scale_fill_manual(values=c("#0072B2", "#005280"))
 
 
-png(filename="Output/Figures/Supplemental/LSS.FST.diplotigs.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
+png(filename="Output/Figures/Supplemental/Figure.S6.LSS.FST.diplotigs.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
 (m3/m2/md4 | b2) +plot_layout(widths = c(4, 1))
 null <- dev.off()
 ```
 
 ![Figure S6- FST extimates in the LSS across new
-diplotigs](./Output/Figures/Supplemental/LSS.FST.diplotigs.png)
+diplotigs](./Output/Figures/Supplemental/Figure.S6.LSS.FST.diplotigs.png)
 
 ## Chromsome by Chromosome Plots
 
