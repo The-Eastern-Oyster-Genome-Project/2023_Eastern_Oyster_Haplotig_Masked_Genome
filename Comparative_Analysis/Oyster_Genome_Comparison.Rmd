@@ -413,14 +413,109 @@ j2a <- j2a + geom_line(aes(y=rollmean(counts, 3, na.pad=TRUE)),size=0.5) +
 png(filename="./Output/Figures/Supplemental/FigureS1.CoverageChromosome2.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
 j2a  / j2 + plot_layout(heights = c(1.5,1.5), guides = "collect")
 null <- dev.off()
-knitr::include_graphics("./Output/Figures/Supplemental/FigureS1.CoverageChromosome2.png")
 ```
 
 ![Figure S1- Coverage by Chromsome](./Output/Figures/Supplemental/FigureS1.CoverageChromosome2.png)
+# Sequencing and Mapping Statistics
+```{bash eval = FALSE}
+cd ../Masked
+for i in `cat namelist` 
+do 
+READS=$(mawk '/total reads:/' ./logfiles/$i.trim.log | head -1 | cut -f3 -d" ")
+READS=$(($READS * 2))
+FILREADS=$(mawk '/reads passed filter/' ./logfiles/$i.trim.log | cut -f4 -d " ")
+paste <(echo -e $i "\t" $READS "\t" $FILREADS) <(samtools view -@64 -F 0x100 -F 0x800 -F0x4 -c $i-RGmd.bam) <(samtools view -@64 -f 0x400 -c $i-RGmd.bam) <(samtools view -@64 -F 0x100 -F 0x800 -c $i.F.bam); done > sequencing.mapping.counts
+
+cat <(echo -e "SAMPLE\tRAW_READS\tTRIMMED_READS\tTOTAL_MAPPINGS\tDUPLICATES_DETECTED\tMAPPINGS_POST_FILTERING\tPOP") <(paste sequencing.mapping.counts <(cut -f2 ../other_files/popmap | mawk '!/POP/')) > sequencing.mapping.counts.masked.txt
+
+mv sequencing.mapping.counts sequencing.mapping.counts.masked.txt ../Comparative_Analysis/Coverage/Masked
+
+cat bamlist.list | parallel -j 8 "samtools coverage {} > {}.coverage"
+rm seq.mean.coverage
+for i in *.bam.coverage; do mawk '!/NC_007175.2/ && !/#/' $i | mawk -v x=${i%.F.bam.coverage} '{sum=sum+$6} END {print sum/NR "\t"x}'; done >> seq.mean.coverage
+mv seq.mean.coverage ../Comparative_Analysis/Coverage/Masked
+ls *-RGmd.bam | parallel -j 8 "samtools coverage {} > {}.coverage.full"
+rm seq.mean.coverage.full
+for i in *_*.coverage.full; do mawk '!/NC_007175.2/ && !/#/' $i | mawk -v x=${i%.coverage.full} '{sum=sum+$6} END {print sum/NR "\t"x}'; done >> seq.mean.coverage.full
+mv seq.mean.coverage.full ../Comparative_Analysis/Coverage/Masked
+mkdir -p Coverage
+mv *.coverage *.coverage.full ./Coverage/
+cd ../Comparative_Analysis/Coverage/Masked
+paste <(mawk '{new=$1*684741128/(684741128-106558067); print new "\t" $2}' seq.mean.coverage | cut -f1) <(mawk '{new=$1*684741128/(684741128-106558067); print new "\t" $2}' seq.mean.coverage.full) <(cut -f2 ../../../other_files/popmap | mawk '!/POP/' ) > total.seq.coverage.masked
+cat <(echo -e "Mean_Filtered_Coverage\tMean_Unfiltered_Coverage\tSample\tPOP")  total.seq.coverage.masked > seq.mean.coverage.masked.txt
+mkdir -p ../../Output/Coverage_Statistics/
+cp seq.mean.coverage.masked.txt sequencing.mapping.counts.masked.txt ../../Output/Coverage_Statistics/
+```
+
+```{bash eval=FALSE}
+cd ../Original
+for i in `cat namelist` 
+do 
+READS=$(mawk '/total reads:/' ./logfiles/$i.trim.log | head -1 | cut -f3 -d" ")
+READS=$(($READS * 2))
+FILREADS=$(mawk '/reads passed filter/' ./logfiles/$i.trim.log | cut -f4 -d " ")
+paste <(echo -e $i "\t" $READS "\t" $FILREADS) <(samtools view -@64 -F 0x100 -F 0x800 -F0x4 -c $i-RGmd.bam) <(samtools view -@64 -f 0x400 -c $i-RGmd.bam) <(samtools view -@64 -F 0x100 -F 0x800 -c $i.F.bam); done > sequencing.mapping.counts
+
+cat <(echo -e "SAMPLE\tRAW_READS\tTRIMMED_READS\tTOTAL_MAPPINGS\tDUPLICATES_DETECTED\tMAPPINGS_POST_FILTERING\tPOP") <(paste sequencing.mapping.counts <(cut -f2 ../other_files/popmap | mawk '!/POP/')) > sequencing.mapping.counts.original.txt
+
+mv sequencing.mapping.counts sequencing.mapping.counts.original.txt ../Comparative_Analysis/Coverage/Original
+
+cat bamlist.list | parallel -j 8 "samtools coverage {} > {}.coverage"
+rm seq.mean.coverage
+for i in *.bam.coverage; do mawk '!/NC_007175.2/ && !/#/' $i | mawk -v x=${i%.F.bam.coverage} '{sum=sum+$6} END {print sum/NR "\t"x}'; done >> seq.mean.coverage
+mv seq.mean.coverage ../Comparative_Analysis/Coverage/Original
+ls *-RGmd.bam | parallel -j 8 "samtools coverage {} > {}.coverage.full"
+rm seq.mean.coverage.full
+for i in *_*.coverage.full; do mawk '!/NC_007175.2/ && !/#/' $i | mawk -v x=${i%.coverage.full} '{sum=sum+$6} END {print sum/NR "\t"x}'; done >> seq.mean.coverage.full
+mv seq.mean.coverage.full ../Comparative_Analysis/Coverage/Original
+mkdir -p Coverage
+mv *.coverage *.coverage.full ./Coverage/
+cd ../Comparative_Analysis/Coverage/Original
+paste <(cut -f1 seq.mean.coverage) <(seq.mean.coverage.full) <(cut -f2 ../../../other_files/popmap | mawk '!/POP/' ) > total.seq.coverage.original
+cat <(echo -e "Mean_Filtered_Coverage\tMean_Unfiltered_Coverage\tSample\tPOP")  total.seq.coverage.original > seq.mean.coverage.original.txt
+
+cp -f seq.mean.coverage.original.txt sequencing.mapping.counts.original.txt ../../Output/Coverage_Statistics/
+```
+
+
+```{r, message=FALSE, warning=FALSE}
+
+seq.map.results <-read.table("./Output/Coverage_Statistics/sequencing.mapping.counts.masked.txt", sep="\t", header=T)
+
+seq.table <-rbind(seq.map.results[,2:6] %>% dplyr::summarise(dplyr::across(everything(), mean)), seq.map.results[,2:6] %>% dplyr::summarise(dplyr::across(everything(), std.error)))
+row.names(seq.table) <- c("Mean","Stanard Error")
+seq.table
+
+
+seq.cov.results <-read.table("./Output/Coverage_Statistics/seq.mean.coverage.masked.txt", sep="\t", header=T)
+cov.table <- rbind(seq.cov.results[,1:2] %>% dplyr::summarise(dplyr::across(everything(), mean)), seq.cov.results[,1:2] %>% dplyr::summarise(dplyr::across(everything(), std.error)))
+
+row.names(cov.table) <- c("Mean","Stanard Error")
+cov.table
+
+
+```
+
+```{r, message=FALSE, warning=FALSE}
+
+seq.map.results <-read.table("./Output/Coverage_Statistics/sequencing.mapping.counts.original.txt", sep="\t", header=T)
+
+seq.table <-rbind(seq.map.results[,2:6] %>% dplyr::summarise(dplyr::across(everything(), mean)), seq.map.results[,2:6] %>% dplyr::summarise(dplyr::across(everything(), std.error)))
+row.names(seq.table) <- c("Mean","Stanard Error")
+seq.table
+
+
+seq.cov.results <-read.table("./Output/Coverage_Statistics/seq.mean.coverage.original.txt", sep="\t", header=T)
+cov.table <- rbind(seq.cov.results[,1:2] %>% dplyr::summarise(dplyr::across(everything(), mean)), seq.cov.results[,1:2] %>% dplyr::summarise(dplyr::across(everything(), std.error)))
+
+row.names(cov.table) <- c("Mean","Stanard Error")
+cov.table
+
+```
 
 ### SNPS
 ```{bash eval = FALSE}
-ls *.vcf.gz | parallel "paste <(echo {}) <(bcftools stats --threads 12 {} | grep ^SN | cut -f3- | grep SNPs | cut -f2 -d ":")" > Output/SNP.list.table
+ls *.vcf.gz | parallel "paste <(echo {}) <(bcftools stats --threads 12 {} | grep ^SN | cut -f3- | grep SNPs | cut -f2 -d ":")" | grep g1 > Output/SNP.list.table
 ```
 
 ```{bash}
@@ -438,7 +533,9 @@ bedtools intersect -b <(sort -k 1,1 -k2,2n ORIGINAL.SNP.MAF01.bed) -a <(sort -k 
 bedtools intersect -b <(sort -k 1,1 -k2,2n  MASKED.SNP.MAF01.bed) -a <(sort -k 1,1 -k2,2n 10kb.bed) -c -sorted > MASKED.snps.maf01.per.10kb.bed
 ```
 
+For consistency with the manuscript, Figure 2 is printed here.  Code is below, as more parameter calculations are needed to create it.
 
+![Figure 2 Paramters across Chromosome 2](./Output/Figures/Figure.2.PopGenParametersChrom2.png)
 
 ```{bash eval = FALSE}
 vcftools --gzvcf SNP.MASKED.TRSdp5g75.nDNA.g1.maf01.FIL.vcf.gz --diff-site-discordance --gzdiff SNP.ORIG.TRSdp5g75.nDNA.g1.maf01.FIL.vcf.gz --out maf01.concordance

@@ -304,8 +304,6 @@ paste <(cut -f1,2,3,4 GI.10kb.cov.bed) <(cut -f4 GI.10kb.fil.cov.bed) <(cut -f4 
 cat <(echo -e "chrom\tstart\tend\tTotal\tFiltered\tMulti\tdataset") <(mawk '{print $0 "\tMasked"}' GI.masked.bed) <(mawk '{print $0 "\tOriginal"}' ../../Haplotig_Masking/GI.original.bed) > ../dataframehm.bed
 ```
 
-<img src="./Output/Figures/Figure1.CoverageComparison.png" width="400px" />
-
 ![Figure 1- Coverage
 Comparison](./Output/Figures/Figure1.CoverageComparison.png)
 
@@ -391,38 +389,135 @@ j2a <- j2a + geom_line(aes(y=rollmean(counts, 3, na.pad=TRUE)),size=0.5) +
   ggtitle("Original")+ 
   theme(axis.title.x=element_blank(),axis.text.x=element_blank(),axis.ticks.x=element_blank()) 
 
-
+png(filename="./Output/Figures/Supplemental/FigureS1.CoverageChromosome2.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
 j2a  / j2 + plot_layout(heights = c(1.5,1.5), guides = "collect")
+null <- dev.off()
+knitr::include_graphics("./Output/Figures/Supplemental/FigureS1.CoverageChromosome2.png")
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-24-1.png)<!-- -->
+![](./Output/Figures/Supplemental/FigureS1.CoverageChromosome2.png)<!-- -->
+
+![Figure S1- Coverage by
+Chromsome](./Output/Figures/Supplemental/FigureS1.CoverageChromosome2.png)
+\# Sequencing and Mapping Statistics
+
+``` bash
+cd ../Masked
+for i in `cat namelist` 
+do 
+READS=$(mawk '/total reads:/' ./logfiles/$i.trim.log | head -1 | cut -f3 -d" ")
+READS=$(($READS * 2))
+FILREADS=$(mawk '/reads passed filter/' ./logfiles/$i.trim.log | cut -f4 -d " ")
+paste <(echo -e $i "\t" $READS "\t" $FILREADS) <(samtools view -@64 -F 0x100 -F 0x800 -F0x4 -c $i-RGmd.bam) <(samtools view -@64 -f 0x400 -c $i-RGmd.bam) <(samtools view -@64 -F 0x100 -F 0x800 -c $i.F.bam); done > sequencing.mapping.counts
+
+cat <(echo -e "SAMPLE\tRAW_READS\tTRIMMED_READS\tTOTAL_MAPPINGS\tDUPLICATES_DETECTED\tMAPPINGS_POST_FILTERING\tPOP") <(paste sequencing.mapping.counts <(cut -f2 ../other_files/popmap | mawk '!/POP/')) > sequencing.mapping.counts.masked.txt
+
+mv sequencing.mapping.counts sequencing.mapping.counts.masked.txt ../Comparative_Analysis/Coverage/Masked
+
+cat bamlist.list | parallel -j 8 "samtools coverage {} > {}.coverage"
+rm seq.mean.coverage
+for i in *.bam.coverage; do mawk '!/NC_007175.2/ && !/#/' $i | mawk -v x=${i%.F.bam.coverage} '{sum=sum+$6} END {print sum/NR "\t"x}'; done >> seq.mean.coverage
+mv seq.mean.coverage ../Comparative_Analysis/Coverage/Masked
+ls *-RGmd.bam | parallel -j 8 "samtools coverage {} > {}.coverage.full"
+rm seq.mean.coverage.full
+for i in *_*.coverage.full; do mawk '!/NC_007175.2/ && !/#/' $i | mawk -v x=${i%.coverage.full} '{sum=sum+$6} END {print sum/NR "\t"x}'; done >> seq.mean.coverage.full
+mv seq.mean.coverage.full ../Comparative_Analysis/Coverage/Masked
+mkdir -p Coverage
+mv *.coverage *.coverage.full ./Coverage/
+cd ../Comparative_Analysis/Coverage/Masked
+paste <(mawk '{new=$1*684741128/(684741128-106558067); print new "\t" $2}' seq.mean.coverage | cut -f1) <(mawk '{new=$1*684741128/(684741128-106558067); print new "\t" $2}' seq.mean.coverage.full) <(cut -f2 ../../../other_files/popmap | mawk '!/POP/' ) > total.seq.coverage.masked
+cat <(echo -e "Mean_Filtered_Coverage\tMean_Unfiltered_Coverage\tSample\tPOP")  total.seq.coverage.masked > seq.mean.coverage.masked.txt
+mkdir -p ../../Output/Coverage_Statistics/
+cp seq.mean.coverage.masked.txt sequencing.mapping.counts.masked.txt ../../Output/Coverage_Statistics/
+```
+
+``` bash
+cd ../Original
+for i in `cat namelist` 
+do 
+READS=$(mawk '/total reads:/' ./logfiles/$i.trim.log | head -1 | cut -f3 -d" ")
+READS=$(($READS * 2))
+FILREADS=$(mawk '/reads passed filter/' ./logfiles/$i.trim.log | cut -f4 -d " ")
+paste <(echo -e $i "\t" $READS "\t" $FILREADS) <(samtools view -@64 -F 0x100 -F 0x800 -F0x4 -c $i-RGmd.bam) <(samtools view -@64 -f 0x400 -c $i-RGmd.bam) <(samtools view -@64 -F 0x100 -F 0x800 -c $i.F.bam); done > sequencing.mapping.counts
+
+cat <(echo -e "SAMPLE\tRAW_READS\tTRIMMED_READS\tTOTAL_MAPPINGS\tDUPLICATES_DETECTED\tMAPPINGS_POST_FILTERING\tPOP") <(paste sequencing.mapping.counts <(cut -f2 ../other_files/popmap | mawk '!/POP/')) > sequencing.mapping.counts.original.txt
+
+mv sequencing.mapping.counts sequencing.mapping.counts.original.txt ../Comparative_Analysis/Coverage/Original
+
+cat bamlist.list | parallel -j 8 "samtools coverage {} > {}.coverage"
+rm seq.mean.coverage
+for i in *.bam.coverage; do mawk '!/NC_007175.2/ && !/#/' $i | mawk -v x=${i%.F.bam.coverage} '{sum=sum+$6} END {print sum/NR "\t"x}'; done >> seq.mean.coverage
+mv seq.mean.coverage ../Comparative_Analysis/Coverage/Original
+ls *-RGmd.bam | parallel -j 8 "samtools coverage {} > {}.coverage.full"
+rm seq.mean.coverage.full
+for i in *_*.coverage.full; do mawk '!/NC_007175.2/ && !/#/' $i | mawk -v x=${i%.coverage.full} '{sum=sum+$6} END {print sum/NR "\t"x}'; done >> seq.mean.coverage.full
+mv seq.mean.coverage.full ../Comparative_Analysis/Coverage/Original
+mkdir -p Coverage
+mv *.coverage *.coverage.full ./Coverage/
+cd ../Comparative_Analysis/Coverage/Original
+paste <(mawk '{new=$1*684741128/(684741128-106558067); print new "\t" $2}' seq.mean.coverage | cut -f1) <(mawk '{new=$1*684741128/(684741128-106558067); print new "\t" $2}' seq.mean.coverage.full) <(cut -f2 ../../../other_files/popmap | mawk '!/POP/' ) > total.seq.coverage.original
+cat <(echo -e "Mean_Filtered_Coverage\tMean_Unfiltered_Coverage\tSample\tPOP")  total.seq.coverage.original > seq.mean.coverage.original.txt
+
+cp seq.mean.coverage.original.txt sequencing.mapping.counts.original.txt ../../Output/Coverage_Statistics/
+```
+
+``` r
+seq.map.results <-read.table(paste(prefix.O,"Coverage_Statistics/","sequencing.mapping.counts.txt", sep=""), sep="\t", header=T)
+
+seq.table <-rbind(seq.map.results[,2:6] %>% summarise(across(everything(), mean)), seq.map.results[,2:6] %>% summarise(across(everything(), std.error)))
+row.names(seq.table) <- c("Mean","Stanard Error")
+seq.table
+
+
+seq.cov.results <-read.table(paste(prefix,"seq.mean.coverage.txt", sep=""), sep="\t", header=T)
+cov.table <- rbind(seq.cov.results[,1:2] %>% summarise(across(everything(), mean)), seq.cov.results[,1:2] %>% summarise(across(everything(), std.error)))
+
+row.names(cov.table) <- c("Mean","Stanard Error")
+cov.table
+
+group_by(seq.cov.results, POP) %>%
+  dplyr::summarise(
+    count = n(),
+    mean = mean(Mean_Filtered_Coverage, na.rm = TRUE),
+    sd = sd(Mean_Filtered_Coverage, na.rm = TRUE),
+    se=std.error(Mean_Filtered_Coverage, na.rm = TRUE) )
+
+group_by(seq.cov.results, POP) %>%
+  dplyr::summarise(
+    count = n(),
+    mean = mean(Mean_Unfiltered_Coverage, na.rm = TRUE),
+    sd = sd(Mean_Unfiltered_Coverage, na.rm = TRUE),
+    se=std.error(Mean_Unfiltered_Coverage, na.rm = TRUE) )
+```
 
 ### SNPS
 
 ``` bash
-ls *.vcf.gz | parallel "paste <(echo {}) <(bcftools stats --threads 12 {} | grep ^SN | cut -f3- | grep SNPs | cut -f2 -d ":")" > Output/SNP.list.table
+ls *.vcf.gz | parallel "paste <(echo {}) <(bcftools stats --threads 12 {} | grep ^SN | cut -f3- | grep SNPs | cut -f2 -d ":")" | grep g1 > Output/SNP.list.table
 ```
 
 ``` bash
 column -t Output/SNP.list.table
 ```
 
-    ## SNP.ORIG.TRSdp5g75.nDNA.g1.maf05.max2alleles.FIL.vcf.gz    3580098
-    ## SNP.ORIG.TRSdp5g75.nDNA.g1.maf05.FIL.vcf.gz                4299397
-    ## SNP.MASKED.TRSdp5g75.nDNA.g1.maf05.max2alleles.FIL.vcf.gz  5574080
-    ## SNP.MASKED.TRSdp5g75.nDNA.g1.maf05.FIL.vcf.gz              6699719
-    ## SNP.ORIG.TRSdp5g75.nDNA.g1.maf01.max2alleles.FIL.vcf.gz    7674518
-    ## SNP.MASKED.TRSdp5g75.nDNA.g1.maf01.FIL.vcf.gz              14103332
-    ## SNP.ORIG.TRSdp5g75.nDNA.g1.maf01.FIL.vcf.gz                8910740
-    ## SNP.ORIG.TRSdp5g75.nDNA.g95.maf05.FIL.vcf.gz               8204907
-    ## SNP.MASKED.TRSdp5g75.nDNA.g1.maf01.max2alleles.FIL.vcf.gz  12149052
-    ## SNP.ORIG.TRSdp5g75.nDNA.g9.maf05.FIL.vcf.gz                10386706
-    ## SNP.MASKED.TRSdp5g75.nDNA.g95.maf05.FIL.vcf.gz             11638196
-    ## SNP.MASKED.TRSdp5g75.nDNA.g9.maf05.FIL.vcf.gz              13748757
-    ## SNP.ORIG.TRSdp5g75.nDNA.g95.maf01.FIL.vcf.gz               16736822
-    ## SNP.ORIG.TRSdp5g75.nDNA.g9.maf01.FIL.vcf.gz                21085816
-    ## SNP.MASKED.TRSdp5g75.nDNA.g95.maf01.FIL.vcf.gz             23885771
-    ## SNP.MASKED.TRSdp5g75.nDNA.g9.maf01.FIL.vcf.gz              27926188
+    ## Random.20k.SNP.MASKED.wildAE.g1.maf05.max2alleles.FIL.vcf.gz                  19158
+    ## Random.20k.SNP.ORIGINAL.wildAE.g1.maf05.max2alleles.FIL.vcf.gz                19177
+    ## Random.50k.SNP.MASKED.wildAE.g1.maf05.max2alleles.FIL.vcf.gz                  50000
+    ## Random.50k.SNP.ORIGINAL.wildAE.g1.maf05.max2alleles.FIL.vcf.gz                50000
+    ## Random.50k.SNP.MASKED.noinbred.g1.maf05.max2alleles.FIL.vcf.gz                50000
+    ## Random.50k.SNP.ORIGINAL.noinbred.g1.maf05.max2alleles.FIL.vcf.gz              50000
+    ## SNP.ORIGINAL.wildAE.g1.maf05.max2alleles.FIL.vcf.gz                           2872577
+    ## SNP.MASKED.wildAE.g1.maf05.max2alleles.FIL.vcf.gz                             4482328
+    ## SNP.ORIG.noinbred.TRSdp5g75.nDNA.g1.maf05.max2alleles.nomissing.FIL.vcf.gz    3580098
+    ## SNP.MASKED.noinbred.TRSdp5g75.nDNA.g1.maf05.max2alleles.nomissing.FIL.vcf.gz  5574080
+    ## SNP.MASKED.TRSdp5g75.nDNA.g1.maf05.max2alleles.FIL.vcf.gz                     5574080
+    ## SNP.ORIG.TRSdp5g75.nDNA.g1.maf01.FIL.vcf.gz                                   8910740
+    ## SNP.MASKED.TRSdp5g75.nDNA.g1.maf01.FIL.vcf.gz                                 14103332
+    ## SNP.ORIG.TRSdp5g75.nDNA.g1.maf05.max2alleles.FIL.vcf.gz                       3580098
+    ## SNP.ORIG.TRSdp5g75.nDNA.g1.maf05.FIL.vcf.gz                                   4299397
+    ## SNP.ORIG.TRSdp5g75.nDNA.g1.maf01.max2alleles.FIL.vcf.gz                       7674518
+    ## SNP.MASKED.TRSdp5g75.nDNA.g1.maf05.FIL.vcf.gz                                 6699719
+    ## SNP.MASKED.TRSdp5g75.nDNA.g1.maf01.max2alleles.FIL.vcf.gz                     12149052
 
 ``` bash
 bcftools query -f '%CHROM\t%POS\n' SNP.MASKED.TRSdp5g75.nDNA.g1.maf01.FIL.vcf.gz | mawk '{print $1 "\t" $2-1 "\t" $2}' > MASKED.SNP.MAF01.bed
@@ -433,6 +528,12 @@ bcftools query -f '%CHROM\t%POS\n' SNP.ORIG.TRSdp5g75.nDNA.g1.maf01.FIL.vcf.gz |
 bedtools intersect -b <(sort -k 1,1 -k2,2n ORIGINAL.SNP.MAF01.bed) -a <(sort -k 1,1 -k2,2n 10kb.bed) -c -sorted > ORIG.snps.maf01.per.10kb.bed
 bedtools intersect -b <(sort -k 1,1 -k2,2n  MASKED.SNP.MAF01.bed) -a <(sort -k 1,1 -k2,2n 10kb.bed) -c -sorted > MASKED.snps.maf01.per.10kb.bed
 ```
+
+For consistency with the manuscript, Figure 2 is printed here. Code is
+below, as more parameter calculations are needed to create it.
+
+![Figure 2 Paramters across Chromosome
+2](./Output/Figures/Figure.2.PopGenParametersChrom2.png)
 
 ``` bash
 vcftools --gzvcf SNP.MASKED.TRSdp5g75.nDNA.g1.maf01.FIL.vcf.gz --diff-site-discordance --gzdiff SNP.ORIG.TRSdp5g75.nDNA.g1.maf01.FIL.vcf.gz --out maf01.concordance
@@ -552,7 +653,7 @@ bd <-ggplot(pi.all.dataframe, aes(x=PI,y = reorder(GROUP, desc(GROUP))))+
 bd
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-34-1.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-37-1.png)<!-- -->
 
 ``` r
 #dev.off()
@@ -711,7 +812,7 @@ md4 <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt),size=(0
 (m3/m2/md4 | bd) +plot_layout(widths = c(4, 1))
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-38-1.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-41-1.png)<!-- -->
 
 ``` r
 #dev.off()
@@ -940,7 +1041,7 @@ md4 <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt),size=(0
 
     ## Warning: Removed 3250 rows containing missing values (geom_point).
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-43-1.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-46-1.png)<!-- -->
 
 ``` r
 #dev.off()
@@ -1013,7 +1114,7 @@ b2 <-ggplot(het.all.dataframe, aes(y=OBS_HET,x = reorder(GROUP, desc(GROUP))))+
 b2
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-46-1.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-49-1.png)<!-- -->
 
 ``` r
 mvhet <- read.table("MASK.het.01.per10kb.text", header = TRUE)
@@ -1165,7 +1266,7 @@ md4 <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt),size=(0
 (m3/m2/md4 | b2) +plot_layout(widths = c(4, 1))
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-48-1.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-51-1.png)<!-- -->
 
 ``` r
 #dev.off()
@@ -1372,7 +1473,7 @@ md4 <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt),size=(0
 (m3/m2/md4 | b2) +plot_layout(widths = c(4, 1))
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-53-1.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-56-1.png)<!-- -->
 
 ``` r
 #dev.off()
@@ -1622,13 +1723,13 @@ OutFLANKResultsPlotter(out_trim.m, withOutliers = TRUE,
                          FALSE, RightZoomFraction = 0.05, titletext = NULL)
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-61-1.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-64-1.png)<!-- -->
 
 ``` r
 hist(out_trim.m$results$pvaluesRightTail)
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-61-2.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-64-2.png)<!-- -->
 
 ``` r
 out_trim.o <- OutFLANK(my_fst.comp.o.r, NumberOfSamples=13, qthreshold = 0.05, Hmin = 0.1)
@@ -1638,13 +1739,13 @@ OutFLANKResultsPlotter(out_trim.o, withOutliers = TRUE,
                          FALSE, RightZoomFraction = 0.05, titletext = NULL)
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-61-3.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-64-3.png)<!-- -->
 
 ``` r
 hist(out_trim.o$results$pvaluesRightTail)
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-61-4.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-64-4.png)<!-- -->
 
 ``` r
 out_trim.m.wae <- OutFLANK(my_fst.wildae.m.r, NumberOfSamples=6, qthreshold = 0.05, Hmin = 0.1)
@@ -1654,13 +1755,13 @@ OutFLANKResultsPlotter(out_trim.m.wae, withOutliers = TRUE,
                          FALSE, RightZoomFraction = 0.05, titletext = NULL)
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-61-5.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-64-5.png)<!-- -->
 
 ``` r
 hist(out_trim.m.wae$results$pvaluesRightTail)
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-61-6.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-64-6.png)<!-- -->
 
 ``` r
 out_trim.o.wae <- OutFLANK(my_fst.wildae.o.r, NumberOfSamples=6, qthreshold = 0.05, Hmin = 0.1)
@@ -1670,13 +1771,13 @@ OutFLANKResultsPlotter(out_trim.o.wae, withOutliers = TRUE,
                          FALSE, RightZoomFraction = 0.05, titletext = NULL)
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-61-7.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-64-7.png)<!-- -->
 
 ``` r
 hist(out_trim.o.wae$results$pvaluesRightTail)
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-61-8.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-64-8.png)<!-- -->
 
 ``` r
 qthres <- 0.05
@@ -1688,7 +1789,7 @@ P1.m <- P1.m[order(as.numeric(rownames(P1.m))),,drop=FALSE]
 hist(P1.m$pvaluesRightTail)
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-62-1.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-65-1.png)<!-- -->
 
 ``` r
 P1.o <- pOutlierFinderChiSqNoCorr(my_fst.comp.o, Fstbar = out_trim.o$FSTNoCorrbar, 
@@ -1698,7 +1799,7 @@ P1.o <- P1.o[order(as.numeric(rownames(P1.o))),,drop=FALSE]
 hist(P1.o$pvaluesRightTail)
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-62-2.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-65-2.png)<!-- -->
 
 ``` r
 P1.m.wae <- pOutlierFinderChiSqNoCorr(my_fst.wildae.m, Fstbar = out_trim.m.wae$FSTNoCorrbar, 
@@ -1708,7 +1809,7 @@ P1.m.wae <- P1.m.wae[order(as.numeric(rownames(P1.m.wae))),,drop=FALSE]
 hist(P1.m.wae$pvaluesRightTail)
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-62-3.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-65-3.png)<!-- -->
 
 ``` r
 P1.o.wae <- pOutlierFinderChiSqNoCorr(my_fst.wildae.o, Fstbar = out_trim.o.wae$FSTNoCorrbar, dfInferred = out_trim.o.wae$dfInferred, qthreshold = qthres, Hmin=0.1)
@@ -1717,7 +1818,7 @@ P1.o.wae <- P1.o.wae[order(as.numeric(rownames(P1.o.wae))),,drop=FALSE]
 hist(P1.o.wae$pvaluesRightTail)
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-62-4.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-65-4.png)<!-- -->
 
 ``` r
 m.plot.df<- setNames(data.frame(matrix(ncol = 7, nrow = length(my_fst.comp.m$LocusName))), c("CHR", "CHRR", "BP", "SNP", "P", "Q", "Outlier"))
@@ -2086,7 +2187,7 @@ md4 <-md4+geom_point(data=dfm.sub2,shape = 25,alpha=1,size=3, aes(fill=as.factor
 (m3/m2/md4 | b2) +plot_layout(widths = c(4, 1))
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-70-1.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-73-1.png)<!-- -->
 
 ``` r
 #dev.off()
@@ -2329,7 +2430,7 @@ md4.wae <-md4.wae+geom_point(data=dfm.sub2,shape = 25,alpha=1,size=3, aes(fill=a
 (m3.wae/m2.wae/md4.wae | b2wae) +plot_layout(widths = c(4, 1))
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-74-1.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-77-1.png)<!-- -->
 
 ``` r
 #dev.off()
@@ -2568,7 +2669,7 @@ md4 <-md4+geom_point(data=dfm.sub2,shape = 25,alpha=1,size=2, aes(fill=as.factor
 (m3/m2/md4 | b2) +plot_layout(widths = c(4, 1))
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-79-1.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-82-1.png)<!-- -->
 
 ``` r
 #dev.off()
@@ -2767,7 +2868,7 @@ md4 <-md4+geom_point(data=dfm.sub2,shape = 25,alpha=1,size=2, aes(fill=as.factor
 (m3/m2/md4 | b2) +plot_layout(widths = c(4, 1))
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-83-1.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-86-1.png)<!-- -->
 
 ``` r
 #dev.off()
@@ -3135,6 +3236,13 @@ for(i in 1:10){
   chromplotCOMP(chroms[i],ncbis[i])
 }
 ```
+
+``` bash
+cp -u ./Output/Figures/Supplemental/ChromosomeComparisons/SNPsCovHetFST2.png Output/Figures/Figure.2.PopGenParametersChrom2.png
+```
+
+![Figure 2 Paramters across Chromosome
+2](./Output/Figures/Figure.2.PopGenParametersChrom2.png)
 
 ## Structural Variant Divergence
 
@@ -3601,7 +3709,7 @@ md4 <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt),size=(0
 (m3/m2/md4 | b2) +plot_layout(widths = c(4, 1))
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-98-1.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-102-1.png)<!-- -->
 
 ``` r
 #dev.off()
@@ -3830,7 +3938,7 @@ md4 <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt),size=(0
 (m3/m2/md4 | b2) +plot_layout(widths = c(4, 1))
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-103-1.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-107-1.png)<!-- -->
 
 ``` r
 #dev.off()
