@@ -471,7 +471,7 @@ mv seq.mean.coverage.full ../Comparative_Analysis/Coverage/Original
 mkdir -p Coverage
 mv *.coverage *.coverage.full ./Coverage/
 cd ../Comparative_Analysis/Coverage/Original
-paste <(cut -f1 seq.mean.coverage) <(seq.mean.coverage.full) <(cut -f2 ../../../other_files/popmap | mawk '!/POP/' ) > total.seq.coverage.original
+paste <(cut -f1 seq.mean.coverage) seq.mean.coverage.full <(cut -f2 ../../../other_files/popmap | mawk '!/POP/' ) > total.seq.coverage.original
 cat <(echo -e "Mean_Filtered_Coverage\tMean_Unfiltered_Coverage\tSample\tPOP")  total.seq.coverage.original > seq.mean.coverage.original.txt
 
 cp -f seq.mean.coverage.original.txt sequencing.mapping.counts.original.txt ../../Output/Coverage_Statistics/
@@ -515,7 +515,19 @@ cov.table
 
 ### SNPS
 ```{bash eval = FALSE}
-ls *.vcf.gz | parallel "paste <(echo {}) <(bcftools stats --threads 12 {} | grep ^SN | cut -f3- | grep SNPs | cut -f2 -d ":")" | grep g1 > Output/SNP.list.table
+bcftools view  --threads 40 -S ../other_files/filter.set SNP.ORIG.TRSdp5g75.nDNA.g1.maf05.max2alleles.FIL.vcf.gz |  bcftools +fill-tags| bcftools view -i 'F_MISSING==0 & MAF > 0.05'  -O z -o SNP.ORIG.noinbred.TRSdp5g75.nDNA.g1.maf05.max2alleles.nomissing.FIL.vcf.gz
+
+bcftools view  --threads 40 -S ../other_files/filter.set SNP.MASKED.TRSdp5g75.nDNA.g1.maf05.max2alleles.FIL.vcf.gz |  bcftools +fill-tags| bcftools view -i 'F_MISSING==0 & MAF > 0.05'  -O z -o SNP.MASKED.noinbred.TRSdp5g75.nDNA.g1.maf05.max2alleles.nomissing.FIL.vcf.gz
+
+bcftools view  --threads 40 -S ../other_files/filter.set SNP.ORIG.TRSdp5g75.nDNA.g1.maf01.max2alleles.FIL.vcf.gz |  bcftools +fill-tags| bcftools view -i 'F_MISSING==0 & MAF > 0.01'  -O z -o SNP.ORIG.noinbred.TRSdp5g75.nDNA.g1.maf01.max2alleles.nomissing.FIL.vcf.gz
+
+bcftools view  --threads 40 -S ../other_files/filter.set SNP.MASKED.TRSdp5g75.nDNA.g1.maf01.max2alleles.FIL.vcf.gz |  bcftools +fill-tags| bcftools view -i 'F_MISSING==0 & MAF > 0.01'  -O z -o SNP.MASKED.noinbred.TRSdp5g75.nDNA.g1.maf01.max2alleles.nomissing.FIL.vcf.gz
+
+bcftools view --threads 40 -S ../other_files/wildAE.pop SNP.MASKED.TRSdp5g75.nDNA.g1.maf05.max2alleles.FIL.vcf.gz | bcftools +fill-tags|bcftools view -i 'F_MISSING==0 & MAF > 0.05' -O z -o SNP.MASKED.wildAE.g1.maf05.max2alleles.FIL.vcf.gz
+
+bcftools view --threads 40 -S ../other_files/wildAE.pop SNP.ORIG.TRSdp5g75.nDNA.g1.maf05.max2alleles.FIL.vcf.gz | bcftools +fill-tags|bcftools view -i 'F_MISSING==0 & MAF > 0.05' -O z -o SNP.ORIGINAL.wildAE.g1.maf05.max2alleles.FIL.vcf.gz
+
+ls SNP*.vcf.gz | parallel "paste <(echo {}) <(bcftools stats --threads 12 {} | grep ^SN | cut -f3- | grep SNPs | cut -f2 -d ":")" | grep g1 | sort > Output/SNP.list.table
 ```
 
 ```{bash}
@@ -1253,15 +1265,6 @@ md4 <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt),size=(0
 
 #### OutFlank
 ```{bash eval = FALSE}
-
-bcftools view  --threads 40 -S ../other_files/filter.set SNP.ORIG.TRSdp5g75.nDNA.g1.maf05.max2alleles.FIL.vcf.gz |  bcftools +fill-tags| bcftools view -i 'F_MISSING==0 & MAF > 0.05'  -O z -o SNP.ORIGINAL.noinbred.TRSdp5g75.nDNA.g1.maf05.max2alleles.nomissing.FIL.vcf.gz
-
-bcftools view  --threads 40 -S ../other_files/filter.set SNP.MASKED.TRSdp5g75.nDNA.g1.maf05.max2alleles.FIL.vcf.gz |  bcftools +fill-tags| bcftools view -i 'F_MISSING==0 & MAF > 0.05'  -O z -o SNP.MASKED.noinbred.TRSdp5g75.nDNA.g1.maf05.max2alleles.nomissing.FIL.vcf.gz
-
-bcftools view --threads 40 -S ../other_files/wildAE.pop SNP.MASKED.TRSdp5g75.nDNA.g1.maf05.max2alleles.FIL.vcf.gz | bcftools +fill-tags|bcftools view -i 'F_MISSING==0 & MAF > 0.05' -O z -o SNP.MASKED.wildAE.g1.maf05.max2alleles.FIL.vcf.gz
-
-bcftools view --threads 40 -S ../other_files/wildAE.pop SNP.ORIG.TRSdp5g75.nDNA.g1.maf05.max2alleles.FIL.vcf.gz | bcftools +fill-tags|bcftools view -i 'F_MISSING==0 & MAF > 0.05' -O z -o SNP.ORIGINAL.wildAE.g1.maf05.max2alleles.FIL.vcf.gz
-
 
 plink2 --vcf SNP.ORIG.noinbred.TRSdp5g75.nDNA.g1.maf05.max2alleles.nomissing.FIL.vcf.gz --make-bed --out Original.NoInbred --allow-extra-chr
 plink2 --vcf SNP.MASKED.noinbred.TRSdp5g75.nDNA.g1.maf05.max2alleles.nomissing.FIL.vcf.gz --make-bed --out Masked.NoInbred --allow-extra-chr
