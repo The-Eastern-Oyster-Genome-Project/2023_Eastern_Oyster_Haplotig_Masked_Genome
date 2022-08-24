@@ -752,7 +752,7 @@ md4 <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt),size=(0
   #scale_alpha_continuous(range=c(0.1,0.95))+
   labs(x = "Chromosome") +
   ggtitle("Original - Masked") +theme_classic()+
-  labs(y=paste("Difference in ", expression(pi))) +
+  labs(y=expression(Delta*" "*pi)) +
   scale_color_manual(values=c("#a59cb5", "#574f66"))
 
 
