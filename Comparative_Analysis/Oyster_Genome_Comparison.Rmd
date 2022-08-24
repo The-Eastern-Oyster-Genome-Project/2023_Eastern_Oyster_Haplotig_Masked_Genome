@@ -295,21 +295,21 @@ cat <(echo -e "chrom \t start \t end \t counts \t dataset") <(mawk '{print $1 "\
 
 paste <(cut -f1,2,3,4 GI.10kb.cov.bed) <(cut -f4 GI.10kb.fil.cov.bed) <(cut -f4 GI.10kb.multi.cov.bed) > GI.masked.bed
 
-cat <(echo -e "chrom\tstart\tend\tTotal\tFiltered\tMulti\tdataset") <(mawk '{print $0 "\tMasked"}' GI.masked.bed) <(mawk '{print $0 "\tOriginal"}' ../Haplotig_Masking/GI.original.bed) > ../dataframehm.bed
+cat <(echo -e "chrom\tstart\tend\tTotal\tFiltered\tMulti\tdataset") <(mawk '{print $0 "\tMasked"}' GI.masked.bed) <(mawk '{print $0 "\tOriginal"}' ../../Haplotig_Masking/GI.original.bed) > ../dataframehm.bed
 
 ```
 
 
 
 
-```{r, message=FALSE, warning=FALSE}
+```{r, message=FALSE, warning=FALSE, out.width = "400px", echo=FALSE}
 cbPalette1 <- c("#D55E00","#999999","#E69F00","#CC79A7","#009E73","#7d5577")
-graph.breaks <- c("Haplotig_Masked","Original")
+graph.breaks <- c("Masked","Original")
 graph.labels <- c("Haplotig Masked", "Original")
 
 
 dataframe1<- read.table("dataframehm.bed", sep="\t", header=T)
-#png(filename="FilteredCoverageCOM.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
+png(filename="./Output/Figures/Figure1.CoverageComparison.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
 dataframe2 <- subset(dataframe1, Total < 100 & Total >1, select=c(chrom, start, end, Total, Filtered, Multi, dataset))
 ggplot(dataframe2,aes(fill=dataset, col=dataset, alpha=dataset)) +
   geom_histogram(aes(x=Filtered), binwidth = 0.25,size=0.025, position="identity")+
@@ -319,8 +319,13 @@ ggplot(dataframe2,aes(fill=dataset, col=dataset, alpha=dataset)) +
   scale_fill_manual(values=cbPalette1, breaks = graph.breaks, labels=graph.labels, name = "Genome") +
   theme_classic() 
   #facet_wrap(~chrom, scales = "free") 
-#dev.off()
+null <- dev.off()
+knitr::include_graphics("./Output/Figures/Figure1.CoverageComparison.png")
 ```
+
+![Figure 1- Coverage Comparison](./Output/Figures/Figure1.CoverageComparison.png)
+
+
 
 ```{bash eval = FALSE}
 cd ../Masked 
@@ -405,8 +410,10 @@ j2a <- j2a + geom_line(aes(y=rollmean(counts, 3, na.pad=TRUE)),size=0.5) +
   ggtitle("Original")+ 
   theme(axis.title.x=element_blank(),axis.text.x=element_blank(),axis.ticks.x=element_blank()) 
 
-
+png(filename="./Output/Figures/Supplemental/FigureS1.CoverageChromosome2.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
 j2a  / j2 + plot_layout(heights = c(1.5,1.5), guides = "collect")
+null <- dev.off()
+knitr::include_graphics("./Output/Figures/Supplemental/FigureS1.CoverageChromosome2.png")
 ```
 
 
