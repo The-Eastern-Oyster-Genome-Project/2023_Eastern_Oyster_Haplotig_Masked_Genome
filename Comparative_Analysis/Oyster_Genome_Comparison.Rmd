@@ -98,9 +98,10 @@ sed -i 's/original_reference/Original Genome/g' ./Summaries/busco_figure.R
 sed -i 's/masked_genome/Masked Genome/g' ./Summaries/busco_figure.R
 sed -i 's/masked_primary_contigs/Masked Primary (Non-haplotig) Contigs/g' ./Summaries/busco_figure.R
 Rscript ./Summaries/busco_figure.R
+cp ./Summaries/busco_figure.png ../Figures/Supplemental/Figure.S2.BUSCO.png
 ```
 Output figure from `BUSCO`
-![BUSCO Results](./Output/BUSCO/Summaries/busco_figure.png)
+![Figure S2-BUSCO Results](./Output/BUSCO/Summaries/busco_figure.png)
 
 
 ## Run variant calling
@@ -309,7 +310,7 @@ graph.labels <- c("Haplotig Masked", "Original")
 
 
 dataframe1<- read.table("dataframehm.bed", sep="\t", header=T)
-png(filename="./Output/Figures/Figure1.CoverageComparison.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
+png(filename="./Output/Figures/Figure.1.CoverageComparison.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
 dataframe2 <- subset(dataframe1, Total < 100 & Total >1, select=c(chrom, start, end, Total, Filtered, Multi, dataset))
 ggplot(dataframe2,aes(fill=dataset, col=dataset, alpha=dataset)) +
   geom_histogram(aes(x=Filtered), binwidth = 0.25,size=0.025, position="identity")+
@@ -323,7 +324,7 @@ null <- dev.off()
 
 ```
 
-![Figure 1- Coverage Comparison](./Output/Figures/Figure1.CoverageComparison.png)
+![Figure 1- Coverage Comparison](./Output/Figures/Figure.1.CoverageComparison.png)
 
 
 
@@ -410,12 +411,12 @@ j2a <- j2a + geom_line(aes(y=rollmean(counts, 3, na.pad=TRUE)),size=0.5) +
   ggtitle("Original")+ 
   theme(axis.title.x=element_blank(),axis.text.x=element_blank(),axis.ticks.x=element_blank()) 
 
-png(filename="./Output/Figures/Supplemental/FigureS1.CoverageChromosome2.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
+png(filename="./Output/Figures/Supplemental/Figure.S1.CoverageChromosome2.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
 j2a  / j2 + plot_layout(heights = c(1.5,1.5), guides = "collect")
 null <- dev.off()
 ```
 
-![Figure S1- Coverage by Chromsome](./Output/Figures/Supplemental/FigureS1.CoverageChromosome2.png)
+![Figure S1- Coverage by Chromsome](./Output/Figures/Supplemental/Figure.S1.CoverageChromosome2.png)
 # Sequencing and Mapping Statistics
 ```{bash eval = FALSE}
 cd ../Masked
@@ -810,7 +811,7 @@ o.m.pi.d$DIFF <- o.m.pi.d$ORIG_PI - o.m.pi.d$MASK_PI
 ```
 
 
-```{r, message=FALSE, warning=TRUE}
+```{r, message=FALSE, warning=FALSE}
 SNP<-c(1:(nrow(o.m.pi.d)))
 mydf<-data.frame(SNP,o.m.pi.d)
 mydf$CHR <- mydf$CHROM
@@ -897,21 +898,21 @@ md4 <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt),size=(0
   scale_size_continuous(range=c(0.01,1.5))+
   scale_x_continuous(breaks = xbreaks, labels = names(xbreaks),expand = c(0,0),limits = c(0,max(dfm$index)+10)) +
   guides(colour = FALSE,alpha=FALSE,size=FALSE) +
-  scale_y_continuous(expand = c(0,0),limits=c(-0.025,0.005))+
+  scale_y_continuous(expand = c(0,0),limits=c(-0.027,0.002))+
   #scale_alpha_continuous(range=c(0.1,0.95))+
   labs(x = "Chromosome") +
   ggtitle("Original - Masked") +theme_classic()+
-  labs(y="Difference in &pi;") +theme(axis.title.y = element_markdown())+ 
+  labs(y=expression(Delta*" "*pi)) + 
   scale_color_manual(values=c("#a59cb5", "#574f66"))
 
 
 
-#png(filename="Output/MvO.diplo.pi.man.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
+png(filename="Output/Figures/Figure.4.Nucleotide.Diversity.Diplotigs.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
 (m3/m2/md4 | bd) +plot_layout(widths = c(4, 1))
-#dev.off()
+dev.off()
 ```
 
-
+![Figure 4 Nucleotide Diversity in new Diplotigs](./Output/Figures/Figure.4.Nucleotide.Diversity.Diplotigs.png)
 
 ### Heterozygosity Masked vs. Original
 ```{bash eval = FALSE}
@@ -1091,13 +1092,13 @@ md4 <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt),size=(0
 
 
 
-#png(filename="Output/MvO.all.Hetero.man.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
+png(filename="Output/Figures/Supplemental/Figure.S3.Heterozygosity.man.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
 (m3/m2/md4 | b2) +plot_layout(widths = c(4, 1))
-#dev.off()
+null <- dev.off()
 
 
 ```
-
+![Supplemental Figure 3- Haplotig effects on heterozygosity](./Output/Figures/Supplemental/Figure.S3.Heterozygosity.man.png)
 
 ### Heterozygosity Masked vs. Original in Diplotigs
 ```{bash eval = FALSE}
@@ -1263,15 +1264,13 @@ md4 <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt),size=(0
 
 
 
-#png(filename="MvO.all.Hetero.diplo.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
+png(filename="./Output/Figures/Supplemental/Figure.S4.HeterozygosityDiplotigs.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
 (m3/m2/md4 | b2) +plot_layout(widths = c(4, 1))
-#dev.off()
-
+null <- dev.off()
 
 ```
 
-
-
+![Supplemental Figure S4- Heterzygosity in new diplotigs](./Output/Figures/Supplemental/Figure.S4.HeterozygosityDiplotigs.png)
 ### Calculate FST
 
 #### OutFlank
@@ -1822,16 +1821,18 @@ length(dfm.sub2$snp)
 md4 <-md4+geom_point(data=dfm.sub2,shape = 25,alpha=1,size=3, aes(fill=as.factor(chrom_alt)))+scale_fill_manual(values=c("#0072B2", "#005280"))
 
 
-#png(filename="Output/MvO.allFSTs.man.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
+png(filename="Output/Figures/Figure.5.FST.man.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
 (m3/m2/md4 | b2) +plot_layout(widths = c(4, 1))
-#dev.off()
+null <- dev.off()
 ```
+![Figure 5- Estimates of FST across genomeversions](./Output/Figures/Figure5.FST.man.png)
+
+
 
 #### Wild AE
 
 ```{r, message=FALSE, warning=FALSE}
 fst.wildAE.dataframe<-read.table("total.wildae.OF.fsts", sep="\t", header=T)
-summary(fst.wildAE.dataframe)
 fst.wildAE.dataframe$GROUP <- factor(fst.wildAE.dataframe$GROUP, levels=c("MASKED", "ORIGINAL" ))
 ```
 
@@ -1977,7 +1978,7 @@ md4.wae <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt),siz
   scale_size_continuous(range=c(0.01,1.5))+
   scale_x_continuous(breaks = xbreaks, labels = names(xbreaks),expand = c(0,0),limits = c(0,max(dfm$index)+10)) +
   guides(colour = "none",alpha="none", fill="none", size="none") +
-  scale_y_continuous(expand = c(0,0),limits=c(-0.51,0.65))+
+  scale_y_continuous(expand = c(0,0),limits=c(-0.3,0.3))+
   #scale_alpha_continuous(range=c(0.1,0.95))+
   labs(x = "Chromosome") +
   ggtitle("Original - Masked") +theme_classic()+
@@ -1994,11 +1995,12 @@ length(dfm.sub2$snp)
 md4.wae <-md4.wae+geom_point(data=dfm.sub2,shape = 25,alpha=1,size=3, aes(fill=as.factor(chrom_alt)))+scale_fill_manual(values=c("#0072B2", "#005280"))
 
 
-#png(filename="Output/MvO.wildAEFSTsOF.man.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
+png(filename="Output/Figures/Figure.6.MvO.LSS.FST.man.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
 (m3.wae/m2.wae/md4.wae | b2wae) +plot_layout(widths = c(4, 1))
-#dev.off()
+null <- dev.off()
 ```
 
+![Figure 6- Estimates of FST across genome versions](Output/Figures/Figure.6.MvO.LSS.FST.man.png)
 
 
 #### diplotig Fst
@@ -2205,13 +2207,15 @@ dfm.sub2 <- merge(dfm,mydf.sig2, by = "snp")
 md4 <-md4+geom_point(data=dfm.sub2,shape = 25,alpha=1,size=2, aes(fill=as.factor(chrom_alt)))+scale_fill_manual(values=c("#0072B2", "#005280"))
 
 
-#png(filename="Output/MvO.allFSTs.diplo.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
+png(filename="Output/Figures/Supplemental/Figure.S5.Full.FST.diplo.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
 (m3/m2/md4 | b2) +plot_layout(widths = c(4, 1))
-#dev.off()
+null<- dev.off()
 
 ```
 
-#### Wild AE Diplo
+![Figures S5-FST estimates across new diplotigs](./Output/Figures/Supplemental/Figure.S5.Full.FST.diplo.png)
+
+#### LSS Diplo
 ```{r message=FALSE, warning=FALSE}
 fst.wae.diplo.dataframe<-read.table("total.all.OF.wae.diplo.fsts", sep="\t", header=T)
 fst.wae.diplo.dataframe$GROUP <- factor(fst.wae.diplo.dataframe$GROUP, levels=c("MASKED", "ORIGINAL" ))
@@ -2373,13 +2377,13 @@ dfm.sub2 <- merge(dfm,mydf.sig2, by = "snp")
 md4 <-md4+geom_point(data=dfm.sub2,shape = 25,alpha=1,size=2, aes(fill=as.factor(chrom_alt)))+scale_fill_manual(values=c("#0072B2", "#005280"))
 
 
-#png(filename="Output/MvO.allFSTs.WAE.diplo.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
+png(filename="Output/Figures/Supplemental/LSS.FST.diplotigs.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
 (m3/m2/md4 | b2) +plot_layout(widths = c(4, 1))
-#dev.off()
+null <- dev.off()
 
 ```
 
-
+![Figure S6- FST extimates in the LSS across new diplotigs](./Output/Figures/Supplemental/LSS.FST.diplotigs.png)
 
 
 ## Chromsome by Chromosome Plots
@@ -3096,7 +3100,7 @@ md4 <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt),size=(0
   scale_size_continuous(range=c(0.01,1.5))+
   scale_x_continuous(breaks = xbreaks, labels = names(xbreaks),expand = c(0,0),limits = c(0,max(dfm$index)+10)) +
   guides(colour = FALSE,alpha=FALSE,size=FALSE) +
-  scale_y_continuous(expand = c(0,0),limits=c(-0.6,0.65))+
+  scale_y_continuous(expand = c(0,0),limits=c(-0.5,0.3))+
   #scale_alpha_continuous(range=c(0.1,0.95))+
   labs(x = "Chromosome") +
   ggtitle("Original - Masked") +theme_classic()+
@@ -3105,14 +3109,16 @@ md4 <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt),size=(0
 
 
 
-#png(filename="MvO.all.VSTs.man.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
+png(filename="Output/Figures/Supplemental/Figure.S7.all.VSTs.man.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
 (m3/m2/md4 | b2) +plot_layout(widths = c(4, 1))
-#dev.off()
+null <- dev.off()
 
 
 ```
 
-#### Wild Atlantic
+![Figure S7- VST across the genome versions](./Output/Figures/Supplemental/Figure.S7.all.VSTs.man.png)
+
+#### LSS
 ```{bash}
 mawk '{print $1 "\t" $2-1 "\t" $2 "\t" $3}' masked_wildAE_vst.tab > masked_wildae_vst.bed
 mawk '{print $1 "\t" $2-1 "\t" $2 "\t" $3}' original_wildAE_vst.tab > original_wildae_vst.bed
@@ -3280,7 +3286,7 @@ md4 <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt),size=(0
   scale_size_continuous(range=c(0.01,1.5))+
   scale_x_continuous(breaks = xbreaks, labels = names(xbreaks),expand = c(0,0),limits = c(0,max(dfm$index)+10)) +
   guides(colour = FALSE,alpha=FALSE,size=FALSE) +
-  scale_y_continuous(expand = c(0,0),limits=c(-0.6,0.65))+
+  scale_y_continuous(expand = c(0,0),limits=c(-0.3,0.3))+
   #scale_alpha_continuous(range=c(0.1,0.95))+
   labs(x = "Chromosome") +
   ggtitle("Original - Masked") +theme_classic()+
@@ -3289,11 +3295,12 @@ md4 <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt),size=(0
 
 
 
-#png(filename="MvO.all.VSTs.man.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
+png(filename="./Output/Figures/Supplemental/Figure.S8.VST.LSS.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
 (m3/m2/md4 | b2) +plot_layout(widths = c(4, 1))
-#dev.off()
+null <- dev.off()
 
 
 ```
 
 
+![Figure S8-VST estimates in the LSS](./Output/Figures/Supplemental/Figure.S8.VST.LSS.png)
