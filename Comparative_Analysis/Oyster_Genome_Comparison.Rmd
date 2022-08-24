@@ -320,7 +320,7 @@ ggplot(dataframe2,aes(fill=dataset, col=dataset, alpha=dataset)) +
   theme_classic() 
   #facet_wrap(~chrom, scales = "free") 
 null <- dev.off()
-knitr::include_graphics("./Output/Figures/Figure1.CoverageComparison.png")
+
 ```
 
 ![Figure 1- Coverage Comparison](./Output/Figures/Figure1.CoverageComparison.png)
@@ -416,22 +416,7 @@ null <- dev.off()
 knitr::include_graphics("./Output/Figures/Supplemental/FigureS1.CoverageChromosome2.png")
 ```
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+![Figure S1- Coverage by Chromsome](./Output/Figures/Supplemental/FigureS1.CoverageChromosome2.png)
 
 ### SNPS
 ```{bash eval = FALSE}
@@ -2634,11 +2619,11 @@ for(i in 1:10){
 }
 ```
 
+```{bash}
+cp -u ./Output/Figures/Supplemental/ChromosomeComparisons/SNPsCovHetFST2.png Output/Figures/Figure.2.PopGenParametersChrom2.png
+```
 
-
-
-
-
+![Figure 2 Paramters across Chromosome 2](./Output/Figures/Figure.2.PopGenParametersChrom2.png)
 
 ## Structural Variant Divergence
 ```{bash}
