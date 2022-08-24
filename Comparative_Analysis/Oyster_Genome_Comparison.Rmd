@@ -6,9 +6,6 @@ output: github_document
 ---
 
 
-```{r, include=FALSE}
-knitr::opts_chunk$set(fig.width = 5.6, fig.height = 3 )
-```
 ## Initial Setup
 
 Clone Repo
