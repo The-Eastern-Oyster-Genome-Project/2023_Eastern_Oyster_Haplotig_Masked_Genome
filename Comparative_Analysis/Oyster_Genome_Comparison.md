@@ -2157,7 +2157,7 @@ null <- dev.off()
 ```
 
 ![Figure 5- Estimates of FST across
-genomeversions](./Output/Figures/Figure5.FST.man.png)
+genomeversions](./Output/Figures/Figure.5.FST.man.png)
 
 #### Wild AE
 
