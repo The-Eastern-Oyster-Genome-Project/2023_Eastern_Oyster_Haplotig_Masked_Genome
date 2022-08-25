@@ -836,7 +836,7 @@ null <- dev.off()
 ![Figure 3 Nucleotide Diversity
 Comparison](Output/Figures/Figure.3.nucleotide.diversity.png)
 
-#### Nucleotide Divergence in Diplotig Regions
+#### Nucleotide Diversity in Diplotig Regions
 
 ``` r
 pi.diplo.dataframe<-read.table("total.diplo.pi", sep="\t", header=T)
@@ -1020,11 +1020,8 @@ md4 <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt),size=(0
 
 png(filename="Output/Figures/Figure.4.Nucleotide.Diversity.Diplotigs.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
 (m3/m2/md4 | bd) +plot_layout(widths = c(4, 1))
-dev.off()
+null <- dev.off()
 ```
-
-    ## png 
-    ##   2
 
 ![Figure 4 Nucleotide Diversity in new
 Diplotigs](./Output/Figures/Figure.4.Nucleotide.Diversity.Diplotigs.png)
