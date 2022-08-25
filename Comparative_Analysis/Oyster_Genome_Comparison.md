@@ -1453,7 +1453,7 @@ null <- dev.off()
 
 ![Supplemental Figure S4- Heterzygosity in new
 diplotigs](./Output/Figures/Supplemental/Figure.S4.HeterozygosityDiplotigs.png)
-\### Calculate FST
+\### Calculate *F<sub>ST</sub>*
 
 #### OutFlank
 

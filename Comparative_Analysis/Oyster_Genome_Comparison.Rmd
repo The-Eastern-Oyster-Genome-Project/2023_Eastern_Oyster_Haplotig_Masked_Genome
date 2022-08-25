@@ -308,7 +308,6 @@ cbPalette1 <- c("#D55E00","#999999","#E69F00","#CC79A7","#009E73","#7d5577")
 graph.breaks <- c("Masked","Original")
 graph.labels <- c("Haplotig Masked", "Original")
 
-
 dataframe1<- read.table("dataframehm.bed", sep="\t", header=T)
 png(filename="./Output/Figures/Figure.1.CoverageComparison.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
 dataframe2 <- subset(dataframe1, Total < 100 & Total >1, select=c(chrom, start, end, Total, Filtered, Multi, dataset))
@@ -318,8 +317,8 @@ ggplot(dataframe2,aes(fill=dataset, col=dataset, alpha=dataset)) +
   scale_alpha_manual(values=c(0.9,0.65), breaks = graph.breaks, labels=graph.labels, name = "Genome")+
   scale_color_manual(values=cbPalette1, breaks = graph.breaks, labels=graph.labels, name = "Genome")+
   scale_fill_manual(values=cbPalette1, breaks = graph.breaks, labels=graph.labels, name = "Genome") +
-  theme_classic() 
-  #facet_wrap(~chrom, scales = "free") 
+  theme_classic() +
+  theme(legend.position = c(0.85, 0.5))
 null <- dev.off()
 
 ```
@@ -1271,7 +1270,7 @@ null <- dev.off()
 ```
 
 ![Supplemental Figure S4- Heterzygosity in new diplotigs](./Output/Figures/Supplemental/Figure.S4.HeterozygosityDiplotigs.png)
-### Calculate FST
+### Calculate *F<sub>ST</sub>*
 
 #### OutFlank
 ```{bash eval = FALSE}
