@@ -391,7 +391,7 @@ j2a <- j2a + geom_line(aes(y=rollmean(counts, 3, na.pad=TRUE)),size=0.5) +
   theme(axis.title.x=element_blank(),axis.text.x=element_blank(),axis.ticks.x=element_blank()) 
 
 png(filename="./Output/Figures/Supplemental/Figure.S1.CoverageChromosome2.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
-j2a  / j2 + plot_layout(heights = c(1.5,1.5), guides = "collect")
+j2a  / j2 + plot_layout(heights = c(1.5,1.5), guides = "collect") + plot_annotation(tag_levels = 'A') 
 null <- dev.off()
 ```
 
@@ -829,7 +829,7 @@ md4 <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt),size=(0
 
 
 png(filename="Output/Figures/Figure.3.nucleotide.diversity.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
-(m3/m2/md4 | bd) +plot_layout(widths = c(4, 1))
+(m3/m2/md4 | bd) +plot_layout(widths = c(4, 1)) + plot_annotation(tag_levels = 'A') 
 null <- dev.off()
 ```
 
@@ -1019,7 +1019,7 @@ md4 <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt),size=(0
 
 
 png(filename="Output/Figures/Figure.4.Nucleotide.Diversity.Diplotigs.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
-(m3/m2/md4 | bd) +plot_layout(widths = c(4, 1))
+(m3/m2/md4 | bd) +plot_layout(widths = c(4, 1)) + plot_annotation(tag_levels = 'A') 
 null <- dev.off()
 ```
 
@@ -1242,7 +1242,7 @@ md4 <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt),size=(0
 
 
 png(filename="Output/Figures/Supplemental/Figure.S3.Heterozygosity.man.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
-(m3/m2/md4 | b2) +plot_layout(widths = c(4, 1))
+(m3/m2/md4 | b2) +plot_layout(widths = c(4, 1)) + plot_annotation(tag_levels = 'A') 
 null <- dev.off()
 ```
 
@@ -1447,7 +1447,7 @@ md4 <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt),size=(0
 
 
 png(filename="./Output/Figures/Supplemental/Figure.S4.HeterozygosityDiplotigs.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
-(m3/m2/md4 | b2) +plot_layout(widths = c(4, 1))
+(m3/m2/md4 | b2) +plot_layout(widths = c(4, 1)) + plot_annotation(tag_levels = 'A') 
 null <- dev.off()
 ```
 
@@ -2149,14 +2149,14 @@ md4 <-md4+geom_point(data=dfm.sub2,shape = 25,alpha=1,size=3, aes(fill=as.factor
 
 
 png(filename="Output/Figures/Figure.5.FST.man.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
-(m3/m2/md4 | b2) +plot_layout(widths = c(4, 1))
+(m3/m2/md4 | b2) +plot_layout(widths = c(4, 1)) + plot_annotation(tag_levels = 'A') 
 null <- dev.off()
 ```
 
 ![Figure 5- Estimates of FST across
 genomeversions](./Output/Figures/Figure.5.FST.man.png)
 
-#### Wild AE
+#### Low Structure Subset (LSS)
 
 ``` r
 fst.wildAE.dataframe<-read.table("total.wildae.OF.fsts", sep="\t", header=T)
@@ -2369,7 +2369,7 @@ md4.wae <-md4.wae+geom_point(data=dfm.sub2,shape = 25,alpha=1,size=3, aes(fill=a
 
 
 png(filename="Output/Figures/Figure.6.MvO.LSS.FST.man.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
-(m3.wae/m2.wae/md4.wae | b2wae) +plot_layout(widths = c(4, 1))
+(m3.wae/m2.wae/md4.wae | b2wae) +plot_layout(widths = c(4, 1)) + plot_annotation(tag_levels = 'A') 
 null <- dev.off()
 ```
 
@@ -2606,7 +2606,7 @@ md4 <-md4+geom_point(data=dfm.sub2,shape = 25,alpha=1,size=2, aes(fill=as.factor
 
 
 png(filename="Output/Figures/Supplemental/Figure.S5.Full.FST.diplo.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
-(m3/m2/md4 | b2) +plot_layout(widths = c(4, 1))
+(m3/m2/md4 | b2) +plot_layout(widths = c(4, 1)) + plot_annotation(tag_levels = 'A') 
 null<- dev.off()
 ```
 
@@ -2803,7 +2803,7 @@ md4 <-md4+geom_point(data=dfm.sub2,shape = 25,alpha=1,size=2, aes(fill=as.factor
 
 
 png(filename="Output/Figures/Supplemental/Figure.S6.LSS.FST.diplotigs.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
-(m3/m2/md4 | b2) +plot_layout(widths = c(4, 1))
+(m3/m2/md4 | b2) +plot_layout(widths = c(4, 1)) + plot_annotation(tag_levels = 'A') 
 null <- dev.off()
 ```
 
@@ -2928,7 +2928,7 @@ Title <- "Output/Figures/Supplemental/ChromosomeComparisons/SNPsCovHetFST"
 png <-".png"
 Filename <- paste(Title,chrom,png,sep="")
 
-ggTitle <- paste("Masked vs. Original ", "Chrom ",chrom," (",ncbi,")",sep="")
+ggTitle <- paste("Haplotig-masked vs. Original ", "Chrom ",chrom," (",ncbi,")",sep="")
 
 
 png(filename=Filename, type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
@@ -3160,7 +3160,9 @@ j6 <- j6 +
 
 
 
-print(j2  / j1/ j5 /j4 / j6 + plot_layout(heights = c(1.5,1.5,1.0,1.0, 1.0) ) )
+print(j2  / j1/ j5 /j4 / j6 + plot_layout(heights = c(1.5,1.5,1.0,1.0, 1.0) ) + plot_annotation(tag_levels = 'A') & 
+  theme(plot.tag.position = c(0, 0.95),
+        plot.tag = element_text(size = 10, hjust = 0, vjust = 0))  ) 
 
 
 dev.off()
@@ -3613,8 +3615,6 @@ nrow(mydf1.sig)
     ## [1] 2744
 
 ``` r
-#vstsubset<-o.m.vst[complete.cases(o.m.vst),]
-
 md4 <-ggman(mydf,chrom="CHR",bp="BIN_START",pvalue="DIFF",snp="SNP",logTransform=FALSE,sigLine=NA, relative.positions = TRUE)
 
 dfm <- md4[[1]]
@@ -3642,7 +3642,7 @@ md4 <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt),size=(0
 
 
 png(filename="Output/Figures/Supplemental/Figure.S7.all.VSTs.man.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
-(m3/m2/md4 | b2) +plot_layout(widths = c(4, 1))
+(m3/m2/md4 | b2) +plot_layout(widths = c(4, 1)) + plot_annotation(tag_levels = 'A')
 null <- dev.off()
 ```
 
@@ -3869,7 +3869,7 @@ md4 <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt),size=(0
 
 
 png(filename="./Output/Figures/Supplemental/Figure.S8.VST.LSS.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
-(m3/m2/md4 | b2) +plot_layout(widths = c(4, 1))
+(m3/m2/md4 | b2) +plot_layout(widths = c(4, 1)) + plot_annotation(tag_levels = 'A')
 null <- dev.off()
 ```
 
