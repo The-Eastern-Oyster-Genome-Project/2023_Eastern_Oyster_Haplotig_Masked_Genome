@@ -68,6 +68,16 @@ wget https://github.com/The-Eastern-Oyster-Genome-Project/2022_Eastern_Oyster_Ha
 gunzip primary.contigs.fasta.gz
 cd ..
 ```
+
+Download the two latest version of the *C. gigas* genome for comparison
+```{bash eval = FALSE}
+mkdir -p Gigas
+cd Gigas
+wget -O - https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/011/032/805/GCA_011032805.1_ASM1103280v1/GCA_011032805.1_ASM1103280v1_genomic.fna.gz | gunzip -c  > gigas_IOCAS.fasta
+wget -O - https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/902/806/645/GCA_902806645.1_cgigas_uk_roslin_v1/GCA_902806645.1_cgigas_uk_roslin_v1_genomic.fna.gz | gunzip -c  > gigas_roslin.fasta
+cd ..
+```
+
 Run BUSCO
 ```{bash eval = FALSE}
 source activate busco
@@ -78,6 +88,10 @@ busco -m genome -i ../../../Original/reference.fasta -o original_reference -l mo
 busco -m genome -i ../../../Masked/reference.fasta -o masked_genome -l mollusca_odb10 --cpu 48
 busco -m genome -i ../../../Masked/primary.contigs.fasta -o masked_primary_contigs -l mollusca_odb10 --cpu 48
 
+busco -m genome -i ../../../Gigas/gigas_IOCAS.fasta -o ASM1103280v1 -l mollusca_odb10 --cpu 48
+busco -m genome -i ../../../Gigas/gigas_roslin.fasta -o cgigas_uk_roslin_v1 -l mollusca_odb10 --cpu 48
+cd ..
+cd ..
 ```
 
 ```{bash eval=FALSE}
@@ -87,6 +101,11 @@ cp original_reference/short_summary.*txt ./Summaries
 cp original_contigs/short_summary.*txt ./Summaries
 cp masked_genome/short_summary.*txt ./Summaries
 cp masked_primary_contigs/short_summary.*txt ./Summaries
+mkdir -p Gigas_Comparison
+cp ASM1103280v1/short_summary.*txt ./Gigas_Comparison
+cp cgigas_uk_roslin_v1/short_summary.*txt ./Gigas_Comparison
+cp masked_genome/short_summary.*txt ./Gigas_Comparison
+cp original_reference/short_summary.*txt ./Gigas_Comparison
 ```
 
 ```{bash eval=FALSE}
@@ -102,7 +121,19 @@ cp ./Summaries/busco_figure.png ../Figures/Supplemental/Figure.S2.BUSCO.png
 ```
 Output figure from `BUSCO`
 ![Figure S2-BUSCO Results](./Output/BUSCO/Summaries/busco_figure.png)
-
+```{bash eval=FALSE}
+source activate busco
+cd Output/BUSCO
+python ~/miniconda3/envs/busco/bin/generate_plot.py -wd Gigas_Comparison
+sed -i 's/ASM1103280v1/C. gigas (Qi et al. 2021)/g' ./Gigas_Comparison/busco_figure.R
+sed -i 's/original_reference/C. virginica Original Genome/g' ./Gigas_Comparison/busco_figure.R
+sed -i 's/masked_genome/C. virginica Masked Genome/g' ./Gigas_Comparison/busco_figure.R
+sed -i 's/cgigas_uk_roslin_v1/C. gigas (Peñaloza et al. 2021)/g' ./Gigas_Comparison/busco_figure.R
+Rscript ./Gigas_Comparison/busco_figure.R
+cp ./Gigas_Comparison/busco_figure.png ../Figures/Supplemental/Figure.SX.Gigas_BUSCO.png
+```
+Output figure from `BUSCO`
+![Figure S2-BUSCO Results](./Output/BUSCO/Gigas_Comparison/busco_figure.png)
 
 ## Run variant calling
 
@@ -553,6 +584,10 @@ For consistency with the manuscript, Figure 2 is printed here.  Code is below, a
 vcftools --gzvcf SNP.MASKED.TRSdp5g75.nDNA.g1.maf01.FIL.vcf.gz --diff-site-discordance --gzdiff SNP.ORIG.TRSdp5g75.nDNA.g1.maf01.FIL.vcf.gz --out maf01.concordance
 
 bedtools subtract -a MASKED.SNP.MAF01.bed -b ORIGINAL.SNP.MAF01.bed > masked.only.SNP.MAF01.bed
+
+bedtools subtract -a ORIGINAL.SNP.MAF01.bed -b MASKED.SNP.MAF01.bed | wc -l
+
+bedtools subtract -a ORIGINAL.SNP.MAF01.bed -b MASKED.SNP.MAF01.bed | bedtools intersect -a - -b ../Haplotig_Masking/haplotigs.bed
 
 bedtools intersect -a masked.only.SNP.MAF01.bed -b new_diplotigs.bed > masked.only.new.SNPs.diplotigs.bed
 bedtools intersect -a ORIGINAL.SNP.MAF01.bed -b new_diplotigs.bed > ORIGINAL.SNP.new_diplotigs.bed 
