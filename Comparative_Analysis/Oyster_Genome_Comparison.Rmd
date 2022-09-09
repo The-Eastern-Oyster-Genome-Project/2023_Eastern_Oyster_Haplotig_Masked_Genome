@@ -130,7 +130,7 @@ sed -i 's/original_reference/C. virginica Original Genome/g' ./Gigas_Comparison/
 sed -i 's/masked_genome/C. virginica Masked Genome/g' ./Gigas_Comparison/busco_figure.R
 sed -i 's/cgigas_uk_roslin_v1/C. gigas (Peñaloza et al. 2021)/g' ./Gigas_Comparison/busco_figure.R
 Rscript ./Gigas_Comparison/busco_figure.R
-cp ./Gigas_Comparison/busco_figure.png ../Figures/Supplemental/Figure.SX.Gigas_BUSCO.png
+cp ./Gigas_Comparison/busco_figure.png ../Figures/Supplemental/Figure.S3.Gigas_BUSCO.png
 ```
 Output figure from `BUSCO`
 ![Figure S2-BUSCO Results](./Output/BUSCO/Gigas_Comparison/busco_figure.png)
@@ -1126,13 +1126,13 @@ md4 <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt),size=(0
 
 
 
-png(filename="Output/Figures/Supplemental/Figure.S3.Heterozygosity.man.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
+png(filename="Output/Figures/Supplemental/Figure.S4.Heterozygosity.man.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
 (m3/m2/md4 | b2) +plot_layout(widths = c(4, 1)) + plot_annotation(tag_levels = 'A') 
 null <- dev.off()
 
 
 ```
-![Supplemental Figure 3- Haplotig effects on heterozygosity](./Output/Figures/Supplemental/Figure.S3.Heterozygosity.man.png)
+![Supplemental Figure 3- Haplotig effects on heterozygosity](./Output/Figures/Supplemental/Figure.S4.Heterozygosity.man.png)
 
 ### Heterozygosity Masked vs. Original in Diplotigs
 ```{bash eval = FALSE}
@@ -1298,13 +1298,13 @@ md4 <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt),size=(0
 
 
 
-png(filename="./Output/Figures/Supplemental/Figure.S4.HeterozygosityDiplotigs.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
+png(filename="./Output/Figures/Supplemental/Figure.S5.HeterozygosityDiplotigs.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
 (m3/m2/md4 | b2) +plot_layout(widths = c(4, 1)) + plot_annotation(tag_levels = 'A') 
 null <- dev.off()
 
 ```
 
-![Supplemental Figure S4- Heterzygosity in new diplotigs](./Output/Figures/Supplemental/Figure.S4.HeterozygosityDiplotigs.png)
+![Supplemental Figure S4- Heterzygosity in new diplotigs](./Output/Figures/Supplemental/Figure.S5.HeterozygosityDiplotigs.png)
 ### Calculate *F<sub>ST</sub>*
 
 #### OutFlank
@@ -2241,13 +2241,13 @@ dfm.sub2 <- merge(dfm,mydf.sig2, by = "snp")
 md4 <-md4+geom_point(data=dfm.sub2,shape = 25,alpha=1,size=2, aes(fill=as.factor(chrom_alt)))+scale_fill_manual(values=c("#0072B2", "#005280"))
 
 
-png(filename="Output/Figures/Supplemental/Figure.S5.Full.FST.diplo.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
+png(filename="Output/Figures/Supplemental/Figure.S6.Full.FST.diplo.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
 (m3/m2/md4 | b2) +plot_layout(widths = c(4, 1)) + plot_annotation(tag_levels = 'A') 
 null<- dev.off()
 
 ```
 
-![Figures S5-FST estimates across new diplotigs](./Output/Figures/Supplemental/Figure.S5.Full.FST.diplo.png)
+![Figures S5-FST estimates across new diplotigs](./Output/Figures/Supplemental/Figure.S6.Full.FST.diplo.png)
 
 #### LSS Diplo
 ```{r message=FALSE, warning=FALSE}
@@ -2411,13 +2411,13 @@ dfm.sub2 <- merge(dfm,mydf.sig2, by = "snp")
 md4 <-md4+geom_point(data=dfm.sub2,shape = 25,alpha=1,size=2, aes(fill=as.factor(chrom_alt)))+scale_fill_manual(values=c("#0072B2", "#005280"))
 
 
-png(filename="Output/Figures/Supplemental/Figure.S6.LSS.FST.diplotigs.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
+png(filename="Output/Figures/Supplemental/Figure.S7.LSS.FST.diplotigs.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
 (m3/m2/md4 | b2) +plot_layout(widths = c(4, 1)) + plot_annotation(tag_levels = 'A') 
 null <- dev.off()
 
 ```
 
-![Figure S6- FST extimates in the LSS across new diplotigs](./Output/Figures/Supplemental/Figure.S6.LSS.FST.diplotigs.png)
+![Figure S6- FST extimates in the LSS across new diplotigs](./Output/Figures/Supplemental/Figure.S7.LSS.FST.diplotigs.png)
 
 
 ## Chromsome by Chromosome Plots
@@ -3142,14 +3142,14 @@ md4 <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt),size=(0
 
 
 
-png(filename="Output/Figures/Supplemental/Figure.S7.all.VSTs.man.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
+png(filename="Output/Figures/Supplemental/Figure.S8.all.VSTs.man.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
 (m3/m2/md4 | b2) +plot_layout(widths = c(4, 1)) + plot_annotation(tag_levels = 'A')
 null <- dev.off()
 
 
 ```
 
-![Figure S7- VST across the genome versions](./Output/Figures/Supplemental/Figure.S7.all.VSTs.man.png)
+![Figure S7- VST across the genome versions](./Output/Figures/Supplemental/Figure.S8.all.VSTs.man.png)
 
 #### LSS
 ```{bash}
@@ -3328,7 +3328,7 @@ md4 <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt),size=(0
 
 
 
-png(filename="./Output/Figures/Supplemental/Figure.S8.VST.LSS.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
+png(filename="./Output/Figures/Supplemental/Figure.S9.VST.LSS.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
 (m3/m2/md4 | b2) +plot_layout(widths = c(4, 1)) + plot_annotation(tag_levels = 'A')
 null <- dev.off()
 
@@ -3336,4 +3336,4 @@ null <- dev.off()
 ```
 
 
-![Figure S8-VST estimates in the LSS](./Output/Figures/Supplemental/Figure.S8.VST.LSS.png)
+![Figure S8-VST estimates in the LSS](./Output/Figures/Supplemental/Figure.S9.VST.LSS.png)
