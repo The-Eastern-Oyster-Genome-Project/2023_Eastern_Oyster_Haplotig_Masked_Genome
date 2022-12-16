@@ -1,5 +1,6 @@
 # 2022 Eastern Oyster Haplotig-masked Genome Repository
 
+[![DOI](https://zenodo.org/badge/526361035.svg)](https://zenodo.org/badge/latestdoi/526361035)
 #### Repository for Puritz et al. 2022 "A second unveiling: haplotig masking of existing genomic resources improves population-level inference"
 
 
@@ -20,3 +21,5 @@ Or simply retrieve with `wget`:
 ```
 wget https://github.com/The-Eastern-Oyster-Genome-Project/2022_Eastern_Oyster_Haplotig_Masked_Genome/raw/main/Haplotig_Masking/Output/Masked_Genome/reference.masked.fasta.gz
 ```
+
+
