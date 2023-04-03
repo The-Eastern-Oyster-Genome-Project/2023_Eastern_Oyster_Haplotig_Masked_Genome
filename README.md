@@ -1,7 +1,7 @@
-# 2022 Eastern Oyster Haplotig-masked Genome Repository
+# 2023 Eastern Oyster Haplotig-masked Genome Repository
 
 [![DOI](https://zenodo.org/badge/526361035.svg)](https://zenodo.org/badge/latestdoi/526361035)
-#### Repository for Puritz et al. 2022 "A second unveiling: haplotig masking of existing genomic resources improves population-level inference"
+#### Repository for Puritz et al. 2023 "A second unveiling: haplotig masking of existing genomic resources improves population-level inference"
 
 
 
