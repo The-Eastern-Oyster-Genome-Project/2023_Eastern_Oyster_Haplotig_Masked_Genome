@@ -134,11 +134,45 @@ cp ./Gigas_Comparison/busco_figure.png ../Figures/Supplemental/Figure.S3.Gigas_B
 ```
 Output figure from `BUSCO`
 ![Figure S2-BUSCO Results](./Output/BUSCO/Gigas_Comparison/busco_figure.png)
+## Download sequence files
 
+### Create environment for sra-tools
+```{bash eval = FALSE}
+cd ../../../
+conda create --name sra-tools --file ../other_files/sra-env.txt
+```
+
+### Download files from SRA
+```{bash eval = FALSE}
+source activate sra-tools
+cd ./Masked
+for i in `cut -f1 ../other_files/SRA_Metadata.tsv | grep -v acce`;
+do
+fasterq-dump $i -p -e 16 --qual-defline "+"
+gzip ${i}_1.fastq
+gzip ${i}_2.fastq
+done
+```
+
+Rename files
+```{bash eval = FALSE}
+NAMES=( `cut -f6  ../other_files/SRA_Metadata.tsv | grep -v sample_name `)
+NAMES2=( `cut -f1 ../other_files/SRA_Metadata.tsv | grep -v acce`)
+LEN=( `grep -v acce ../other_files/SRA_Metadata.tsv | wc -l `)
+LEN=$(($LEN - 1))
+
+for ((i = 0; i <= $LEN; i++));
+do
+mv ${NAMES2[$i]}_1.fastq.gz ${NAMES[$i]}.F.fq.gz
+mv ${NAMES2[$i]}_2.fastq.gz ${NAMES[$i]}.R.fq.gz
+done
+
+```
 ## Run variant calling
 
-Run modified dDocent pipeline **but make sure to change nunber of processors to match your machine and your email address**
+Run modified dDocent pipeline **but make sure to change number of processors to match your machine and your email address**
 ```{bash eval = FALSE}
+source activate HMASK
 bash ../scripts/dDocent_ngs ../other_files/config
 ```
 
@@ -146,13 +180,16 @@ Wait for code to finsh (will take a few days)
 
 ## Filter variant calls **Note** 40 is the number of processors
 ```{bash eval = FALSE}
+source activate HMASK
 cd raw.vcf
 bash ../../../scripts/PVCF_filter.sh MASKED 40 
 ```
 
 ## Run and filter original 
 ```{bash eval = FALSE}
+source activate HMASK
 cd ../Original
+ln -s ../Masked/*.fq.gz .
 bash ../scripts/dDocent_ngs ../other_files/config
 cd raw.vcf
 bash ../../../scripts/PVCF_filter.sh ORIG 40 

@@ -141,14 +141,51 @@ cp ./Gigas_Comparison/busco_figure.png ../Figures/Supplemental/Figure.S3.Gigas_B
 ```
 
 Output figure from `BUSCO` ![Figure S2-BUSCO
-Results](./Output/BUSCO/Gigas_Comparison/busco_figure.png)
+Results](./Output/BUSCO/Gigas_Comparison/busco_figure.png) \## Download
+sequence files
+
+### Create environment for sra-tools
+
+``` bash
+cd ../../../
+conda create --name sra-tools --file ../other_files/sra-env.txt
+```
+
+### Download files from SRA
+
+``` bash
+source activate sra-tools
+cd ./Masked
+for i in `cut -f1 ../other_files/SRA_Metadata.tsv | grep -v acce`;
+do
+fasterq-dump $i -p -e 16 --qual-defline "+"
+gzip ${i}_1.fastq
+gzip ${i}_2.fastq
+done
+```
+
+Rename files
+
+``` bash
+NAMES=( `cut -f6  ../other_files/SRA_Metadata.tsv | grep -v sample_name `)
+NAMES2=( `cut -f1 ../other_files/SRA_Metadata.tsv | grep -v acce`)
+LEN=( `grep -v acce ../other_files/SRA_Metadata.tsv | wc -l `)
+LEN=$(($LEN - 1))
+
+for ((i = 0; i <= $LEN; i++));
+do
+mv ${NAMES2[$i]}_1.fastq.gz ${NAMES[$i]}.F.fq.gz
+mv ${NAMES2[$i]}_2.fastq.gz ${NAMES[$i]}.R.fq.gz
+done
+```
 
 ## Run variant calling
 
-Run modified dDocent pipeline **but make sure to change nunber of
+Run modified dDocent pipeline **but make sure to change number of
 processors to match your machine and your email address**
 
 ``` bash
+source activate HMASK
 bash ../scripts/dDocent_ngs ../other_files/config
 ```
 
@@ -157,6 +194,7 @@ Wait for code to finsh (will take a few days)
 ## Filter variant calls **Note** 40 is the number of processors
 
 ``` bash
+source activate HMASK
 cd raw.vcf
 bash ../../../scripts/PVCF_filter.sh MASKED 40 
 ```
@@ -164,7 +202,9 @@ bash ../../../scripts/PVCF_filter.sh MASKED 40
 ## Run and filter original
 
 ``` bash
+source activate HMASK
 cd ../Original
+ln -s ../Masked/*.fq.gz .
 bash ../scripts/dDocent_ngs ../other_files/config
 cd raw.vcf
 bash ../../../scripts/PVCF_filter.sh ORIG 40 
@@ -711,7 +751,7 @@ ggplot(pi.all.dataframe, aes(x=PI,y = reorder(GROUP, desc(GROUP))))+
   theme_classic() 
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-41-1.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-44-1.png)<!-- -->
 
 ``` r
 bd <-ggplot(pi.all.dataframe, aes(y=PI,x = reorder(GROUP, desc(GROUP))))+
@@ -1132,7 +1172,7 @@ b2 <-ggplot(het.all.dataframe, aes(y=OBS_HET,x = reorder(GROUP, desc(GROUP))))+
 b2
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-53-1.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-56-1.png)<!-- -->
 
 ``` r
 mvhet <- read.table("MASK.het.01.per10kb.text", header = TRUE)
@@ -1291,6 +1331,7 @@ heterozygosity](./Output/Figures/Supplemental/Figure.S4.Heterozygosity.man.png)
 ### Heterozygosity Masked vs. Original in Diplotigs
 
 ``` bash
+
 bedtools intersect -a <(mawk '!/CHRO/' total.all.per10kb.het ) -b new_diplotigs.bed -wa > total.all.d.het
 cat <(head -1 total.all.per10kb.het) total.all.d.het > total.diplo.hets
 ```
@@ -1497,6 +1538,7 @@ diplotigs](./Output/Figures/Supplemental/Figure.S5.HeterozygosityDiplotigs.png)
 #### OutFlank
 
 ``` bash
+
 plink2 --vcf SNP.ORIG.noinbred.TRSdp5g75.nDNA.g1.maf05.max2alleles.nomissing.FIL.vcf.gz --make-bed --out Original.NoInbred --allow-extra-chr
 plink2 --vcf SNP.MASKED.noinbred.TRSdp5g75.nDNA.g1.maf05.max2alleles.nomissing.FIL.vcf.gz --make-bed --out Masked.NoInbred --allow-extra-chr
 
@@ -1575,12 +1617,12 @@ svd.m.wildae <- snp_autoSVD(G.m.wae, as.integer(factor(CHR.m.wae)), POS.m.wae, n
     ## 
     ## Iteration 1:
     ## Computing SVD..
-    ## 2994 outlier variants detected..
+    ## 2982 outlier variants detected..
     ## 49 long-range LD regions detected..
     ## 
     ## Iteration 2:
     ## Computing SVD..
-    ## 17 outlier variants detected..
+    ## 15 outlier variants detected..
     ## 0 long-range LD region detected..
     ## 
     ## Iteration 3:
@@ -1599,13 +1641,13 @@ svd.o.wae <- snp_autoSVD(G.o.wae, as.integer(factor(CHR.o.wae)), POS.o.wae, ncor
     ## 
     ## Iteration 1:
     ## Computing SVD..
-    ## 2438 outlier variants detected..
+    ## 2437 outlier variants detected..
     ## 39 long-range LD regions detected..
     ## 
     ## Iteration 2:
     ## Computing SVD..
-    ## 31 outlier variants detected..
-    ## 1 long-range LD region detected..
+    ## 25 outlier variants detected..
+    ## 0 long-range LD region detected..
     ## 
     ## Iteration 3:
     ## Computing SVD..
@@ -1629,6 +1671,7 @@ write(paste(CHR.o.wae[attr(svd.o.wae, "subset")],
 ```
 
 ``` bash
+
 cut -f1 NoInbredLociLocationsAfterThinning.maskedPCs.txt| uniq | parallel "grep {} NoInbredLociLocationsAfterThinning.maskedPCs.txt | shuf  2>/dev/null | shuf 2>/dev/null | shuf 2>/dev/null| head -5000" >> random.50k.masked.snps
 
 cut -f1 Original.NoInbredLociLocationsAfterThinning.maskedPCs.txt | grep -v NA| uniq | parallel "grep {} Original.NoInbredLociLocationsAfterThinning.maskedPCs.txt | shuf  2>/dev/null | shuf 2>/dev/null | shuf 2>/dev/null| head -5000" >> random.50k.original.snps
@@ -1727,13 +1770,13 @@ OutFLANKResultsPlotter(out_trim.m, withOutliers = TRUE,
                          FALSE, RightZoomFraction = 0.05, titletext = NULL)
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-68-1.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-71-1.png)<!-- -->
 
 ``` r
 hist(out_trim.m$results$pvaluesRightTail)
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-68-2.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-71-2.png)<!-- -->
 
 ``` r
 out_trim.o <- OutFLANK(my_fst.comp.o.r, NumberOfSamples=13, qthreshold = 0.05, Hmin = 0.1)
@@ -1743,13 +1786,13 @@ OutFLANKResultsPlotter(out_trim.o, withOutliers = TRUE,
                          FALSE, RightZoomFraction = 0.05, titletext = NULL)
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-68-3.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-71-3.png)<!-- -->
 
 ``` r
 hist(out_trim.o$results$pvaluesRightTail)
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-68-4.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-71-4.png)<!-- -->
 
 ``` r
 out_trim.m.wae <- OutFLANK(my_fst.wildae.m.r, NumberOfSamples=6, qthreshold = 0.05, Hmin = 0.1)
@@ -1759,13 +1802,13 @@ OutFLANKResultsPlotter(out_trim.m.wae, withOutliers = TRUE,
                          FALSE, RightZoomFraction = 0.05, titletext = NULL)
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-68-5.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-71-5.png)<!-- -->
 
 ``` r
 hist(out_trim.m.wae$results$pvaluesRightTail)
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-68-6.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-71-6.png)<!-- -->
 
 ``` r
 out_trim.o.wae <- OutFLANK(my_fst.wildae.o.r, NumberOfSamples=6, qthreshold = 0.05, Hmin = 0.1)
@@ -1775,13 +1818,13 @@ OutFLANKResultsPlotter(out_trim.o.wae, withOutliers = TRUE,
                          FALSE, RightZoomFraction = 0.05, titletext = NULL)
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-68-7.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-71-7.png)<!-- -->
 
 ``` r
 hist(out_trim.o.wae$results$pvaluesRightTail)
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-68-8.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-71-8.png)<!-- -->
 
 ``` r
 qthres <- 0.05
@@ -1793,7 +1836,7 @@ P1.m <- P1.m[order(as.numeric(rownames(P1.m))),,drop=FALSE]
 hist(P1.m$pvaluesRightTail)
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-69-1.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-72-1.png)<!-- -->
 
 ``` r
 P1.o <- pOutlierFinderChiSqNoCorr(my_fst.comp.o, Fstbar = out_trim.o$FSTNoCorrbar, 
@@ -1803,7 +1846,7 @@ P1.o <- P1.o[order(as.numeric(rownames(P1.o))),,drop=FALSE]
 hist(P1.o$pvaluesRightTail)
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-69-2.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-72-2.png)<!-- -->
 
 ``` r
 P1.m.wae <- pOutlierFinderChiSqNoCorr(my_fst.wildae.m, Fstbar = out_trim.m.wae$FSTNoCorrbar, 
@@ -1813,7 +1856,7 @@ P1.m.wae <- P1.m.wae[order(as.numeric(rownames(P1.m.wae))),,drop=FALSE]
 hist(P1.m.wae$pvaluesRightTail)
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-69-3.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-72-3.png)<!-- -->
 
 ``` r
 P1.o.wae <- pOutlierFinderChiSqNoCorr(my_fst.wildae.o, Fstbar = out_trim.o.wae$FSTNoCorrbar, dfInferred = out_trim.o.wae$dfInferred, qthreshold = qthres, Hmin=0.1)
@@ -1822,7 +1865,7 @@ P1.o.wae <- P1.o.wae[order(as.numeric(rownames(P1.o.wae))),,drop=FALSE]
 hist(P1.o.wae$pvaluesRightTail)
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-69-4.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-72-4.png)<!-- -->
 
 ``` r
 m.plot.df<- setNames(data.frame(matrix(ncol = 7, nrow = length(my_fst.comp.m$LocusName))), c("CHR", "CHRR", "BP", "SNP", "P", "Q", "Outlier"))
