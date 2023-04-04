@@ -23,6 +23,7 @@ cd Original
 Download original genome
 
 ``` bash
+source activate HMASK
 wget https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/002/022/765/GCF_002022765.2_C_virginica-3.0/GCF_002022765.2_C_virginica-3.0_genomic.fna.gz
 gunzip GCF_002022765.2_C_virginica-3.0_genomic.fna.gz 
 
