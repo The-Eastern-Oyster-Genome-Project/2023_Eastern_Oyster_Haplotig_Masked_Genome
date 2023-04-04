@@ -72,6 +72,16 @@ gunzip primary.contigs.fasta.gz
 cd ..
 ```
 
+Download the two latest version of the *C. gigas* genome for comparison
+
+``` bash
+mkdir -p Gigas
+cd Gigas
+wget -O - https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/011/032/805/GCA_011032805.1_ASM1103280v1/GCA_011032805.1_ASM1103280v1_genomic.fna.gz | gunzip -c  > gigas_IOCAS.fasta
+wget -O - https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/902/806/645/GCA_902806645.1_cgigas_uk_roslin_v1/GCA_902806645.1_cgigas_uk_roslin_v1_genomic.fna.gz | gunzip -c  > gigas_roslin.fasta
+cd ..
+```
+
 Run BUSCO
 
 ``` bash
@@ -82,6 +92,11 @@ busco -m genome -i ../../../Original/contigs.fasta -o original_contigs -l mollus
 busco -m genome -i ../../../Original/reference.fasta -o original_reference -l mollusca_odb10 --cpu 48
 busco -m genome -i ../../../Masked/reference.fasta -o masked_genome -l mollusca_odb10 --cpu 48
 busco -m genome -i ../../../Masked/primary.contigs.fasta -o masked_primary_contigs -l mollusca_odb10 --cpu 48
+
+busco -m genome -i ../../../Gigas/gigas_IOCAS.fasta -o ASM1103280v1 -l mollusca_odb10 --cpu 48
+busco -m genome -i ../../../Gigas/gigas_roslin.fasta -o cgigas_uk_roslin_v1 -l mollusca_odb10 --cpu 48
+cd ..
+cd ..
 ```
 
 ``` bash
@@ -91,6 +106,11 @@ cp original_reference/short_summary.*txt ./Summaries
 cp original_contigs/short_summary.*txt ./Summaries
 cp masked_genome/short_summary.*txt ./Summaries
 cp masked_primary_contigs/short_summary.*txt ./Summaries
+mkdir -p Gigas_Comparison
+cp ASM1103280v1/short_summary.*txt ./Gigas_Comparison
+cp cgigas_uk_roslin_v1/short_summary.*txt ./Gigas_Comparison
+cp masked_genome/short_summary.*txt ./Gigas_Comparison
+cp original_reference/short_summary.*txt ./Gigas_Comparison
 ```
 
 ``` bash
@@ -107,6 +127,21 @@ cp ./Summaries/busco_figure.png ../Figures/Supplemental/Figure.S2.BUSCO.png
 
 Output figure from `BUSCO` ![Figure S2-BUSCO
 Results](./Output/BUSCO/Summaries/busco_figure.png)
+
+``` bash
+source activate busco
+cd Output/BUSCO
+python ~/miniconda3/envs/busco/bin/generate_plot.py -wd Gigas_Comparison
+sed -i 's/ASM1103280v1/C. gigas (Qi et al. 2021)/g' ./Gigas_Comparison/busco_figure.R
+sed -i 's/original_reference/C. virginica Original Genome/g' ./Gigas_Comparison/busco_figure.R
+sed -i 's/masked_genome/C. virginica Masked Genome/g' ./Gigas_Comparison/busco_figure.R
+sed -i 's/cgigas_uk_roslin_v1/C. gigas (Peñaloza et al. 2021)/g' ./Gigas_Comparison/busco_figure.R
+Rscript ./Gigas_Comparison/busco_figure.R
+cp ./Gigas_Comparison/busco_figure.png ../Figures/Supplemental/Figure.S3.Gigas_BUSCO.png
+```
+
+Output figure from `BUSCO` ![Figure S2-BUSCO
+Results](./Output/BUSCO/Gigas_Comparison/busco_figure.png)
 
 ## Run variant calling
 
@@ -571,6 +606,10 @@ vcftools --gzvcf SNP.MASKED.TRSdp5g75.nDNA.g1.maf01.FIL.vcf.gz --diff-site-disco
 
 bedtools subtract -a MASKED.SNP.MAF01.bed -b ORIGINAL.SNP.MAF01.bed > masked.only.SNP.MAF01.bed
 
+bedtools subtract -a ORIGINAL.SNP.MAF01.bed -b MASKED.SNP.MAF01.bed | wc -l
+
+bedtools subtract -a ORIGINAL.SNP.MAF01.bed -b MASKED.SNP.MAF01.bed | bedtools intersect -a - -b ../Haplotig_Masking/haplotigs.bed
+
 bedtools intersect -a masked.only.SNP.MAF01.bed -b new_diplotigs.bed > masked.only.new.SNPs.diplotigs.bed
 bedtools intersect -a ORIGINAL.SNP.MAF01.bed -b new_diplotigs.bed > ORIGINAL.SNP.new_diplotigs.bed 
 bedtools intersect -a MASKED.SNP.MAF01.bed -b new_diplotigs.bed > MASKED.SNP.new_diplotigs.bed 
@@ -672,7 +711,7 @@ ggplot(pi.all.dataframe, aes(x=PI,y = reorder(GROUP, desc(GROUP))))+
   theme_classic() 
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-39-1.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-41-1.png)<!-- -->
 
 ``` r
 bd <-ggplot(pi.all.dataframe, aes(y=PI,x = reorder(GROUP, desc(GROUP))))+
@@ -1093,7 +1132,7 @@ b2 <-ggplot(het.all.dataframe, aes(y=OBS_HET,x = reorder(GROUP, desc(GROUP))))+
 b2
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-51-1.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-53-1.png)<!-- -->
 
 ``` r
 mvhet <- read.table("MASK.het.01.per10kb.text", header = TRUE)
@@ -1241,13 +1280,13 @@ md4 <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt),size=(0
 
 
 
-png(filename="Output/Figures/Supplemental/Figure.S3.Heterozygosity.man.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
+png(filename="Output/Figures/Supplemental/Figure.S4.Heterozygosity.man.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
 (m3/m2/md4 | b2) +plot_layout(widths = c(4, 1)) + plot_annotation(tag_levels = 'A') 
 null <- dev.off()
 ```
 
 ![Supplemental Figure 3- Haplotig effects on
-heterozygosity](./Output/Figures/Supplemental/Figure.S3.Heterozygosity.man.png)
+heterozygosity](./Output/Figures/Supplemental/Figure.S4.Heterozygosity.man.png)
 
 ### Heterozygosity Masked vs. Original in Diplotigs
 
@@ -1446,13 +1485,13 @@ md4 <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt),size=(0
 
 
 
-png(filename="./Output/Figures/Supplemental/Figure.S4.HeterozygosityDiplotigs.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
+png(filename="./Output/Figures/Supplemental/Figure.S5.HeterozygosityDiplotigs.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
 (m3/m2/md4 | b2) +plot_layout(widths = c(4, 1)) + plot_annotation(tag_levels = 'A') 
 null <- dev.off()
 ```
 
 ![Supplemental Figure S4- Heterzygosity in new
-diplotigs](./Output/Figures/Supplemental/Figure.S4.HeterozygosityDiplotigs.png)
+diplotigs](./Output/Figures/Supplemental/Figure.S5.HeterozygosityDiplotigs.png)
 \### Calculate *F<sub>ST</sub>*
 
 #### OutFlank
@@ -1688,13 +1727,13 @@ OutFLANKResultsPlotter(out_trim.m, withOutliers = TRUE,
                          FALSE, RightZoomFraction = 0.05, titletext = NULL)
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-66-1.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-68-1.png)<!-- -->
 
 ``` r
 hist(out_trim.m$results$pvaluesRightTail)
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-66-2.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-68-2.png)<!-- -->
 
 ``` r
 out_trim.o <- OutFLANK(my_fst.comp.o.r, NumberOfSamples=13, qthreshold = 0.05, Hmin = 0.1)
@@ -1704,13 +1743,13 @@ OutFLANKResultsPlotter(out_trim.o, withOutliers = TRUE,
                          FALSE, RightZoomFraction = 0.05, titletext = NULL)
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-66-3.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-68-3.png)<!-- -->
 
 ``` r
 hist(out_trim.o$results$pvaluesRightTail)
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-66-4.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-68-4.png)<!-- -->
 
 ``` r
 out_trim.m.wae <- OutFLANK(my_fst.wildae.m.r, NumberOfSamples=6, qthreshold = 0.05, Hmin = 0.1)
@@ -1720,13 +1759,13 @@ OutFLANKResultsPlotter(out_trim.m.wae, withOutliers = TRUE,
                          FALSE, RightZoomFraction = 0.05, titletext = NULL)
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-66-5.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-68-5.png)<!-- -->
 
 ``` r
 hist(out_trim.m.wae$results$pvaluesRightTail)
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-66-6.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-68-6.png)<!-- -->
 
 ``` r
 out_trim.o.wae <- OutFLANK(my_fst.wildae.o.r, NumberOfSamples=6, qthreshold = 0.05, Hmin = 0.1)
@@ -1736,13 +1775,13 @@ OutFLANKResultsPlotter(out_trim.o.wae, withOutliers = TRUE,
                          FALSE, RightZoomFraction = 0.05, titletext = NULL)
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-66-7.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-68-7.png)<!-- -->
 
 ``` r
 hist(out_trim.o.wae$results$pvaluesRightTail)
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-66-8.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-68-8.png)<!-- -->
 
 ``` r
 qthres <- 0.05
@@ -1754,7 +1793,7 @@ P1.m <- P1.m[order(as.numeric(rownames(P1.m))),,drop=FALSE]
 hist(P1.m$pvaluesRightTail)
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-67-1.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-69-1.png)<!-- -->
 
 ``` r
 P1.o <- pOutlierFinderChiSqNoCorr(my_fst.comp.o, Fstbar = out_trim.o$FSTNoCorrbar, 
@@ -1764,7 +1803,7 @@ P1.o <- P1.o[order(as.numeric(rownames(P1.o))),,drop=FALSE]
 hist(P1.o$pvaluesRightTail)
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-67-2.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-69-2.png)<!-- -->
 
 ``` r
 P1.m.wae <- pOutlierFinderChiSqNoCorr(my_fst.wildae.m, Fstbar = out_trim.m.wae$FSTNoCorrbar, 
@@ -1774,7 +1813,7 @@ P1.m.wae <- P1.m.wae[order(as.numeric(rownames(P1.m.wae))),,drop=FALSE]
 hist(P1.m.wae$pvaluesRightTail)
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-67-3.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-69-3.png)<!-- -->
 
 ``` r
 P1.o.wae <- pOutlierFinderChiSqNoCorr(my_fst.wildae.o, Fstbar = out_trim.o.wae$FSTNoCorrbar, dfInferred = out_trim.o.wae$dfInferred, qthreshold = qthres, Hmin=0.1)
@@ -1783,7 +1822,7 @@ P1.o.wae <- P1.o.wae[order(as.numeric(rownames(P1.o.wae))),,drop=FALSE]
 hist(P1.o.wae$pvaluesRightTail)
 ```
 
-![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-67-4.png)<!-- -->
+![](Oyster_Genome_Comparison_files/figure-gfm/unnamed-chunk-69-4.png)<!-- -->
 
 ``` r
 m.plot.df<- setNames(data.frame(matrix(ncol = 7, nrow = length(my_fst.comp.m$LocusName))), c("CHR", "CHRR", "BP", "SNP", "P", "Q", "Outlier"))
@@ -2605,13 +2644,13 @@ dfm.sub2 <- merge(dfm,mydf.sig2, by = "snp")
 md4 <-md4+geom_point(data=dfm.sub2,shape = 25,alpha=1,size=2, aes(fill=as.factor(chrom_alt)))+scale_fill_manual(values=c("#0072B2", "#005280"))
 
 
-png(filename="Output/Figures/Supplemental/Figure.S5.Full.FST.diplo.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
+png(filename="Output/Figures/Supplemental/Figure.S6.Full.FST.diplo.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
 (m3/m2/md4 | b2) +plot_layout(widths = c(4, 1)) + plot_annotation(tag_levels = 'A') 
 null<- dev.off()
 ```
 
 ![Figures S5-FST estimates across new
-diplotigs](./Output/Figures/Supplemental/Figure.S5.Full.FST.diplo.png)
+diplotigs](./Output/Figures/Supplemental/Figure.S6.Full.FST.diplo.png)
 
 #### LSS Diplo
 
@@ -2802,13 +2841,13 @@ dfm.sub2 <- merge(dfm,mydf.sig2, by = "snp")
 md4 <-md4+geom_point(data=dfm.sub2,shape = 25,alpha=1,size=2, aes(fill=as.factor(chrom_alt)))+scale_fill_manual(values=c("#0072B2", "#005280"))
 
 
-png(filename="Output/Figures/Supplemental/Figure.S6.LSS.FST.diplotigs.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
+png(filename="Output/Figures/Supplemental/Figure.S7.LSS.FST.diplotigs.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
 (m3/m2/md4 | b2) +plot_layout(widths = c(4, 1)) + plot_annotation(tag_levels = 'A') 
 null <- dev.off()
 ```
 
 ![Figure S6- FST extimates in the LSS across new
-diplotigs](./Output/Figures/Supplemental/Figure.S6.LSS.FST.diplotigs.png)
+diplotigs](./Output/Figures/Supplemental/Figure.S7.LSS.FST.diplotigs.png)
 
 ## Chromsome by Chromosome Plots
 
@@ -3641,13 +3680,13 @@ md4 <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt),size=(0
 
 
 
-png(filename="Output/Figures/Supplemental/Figure.S7.all.VSTs.man.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
+png(filename="Output/Figures/Supplemental/Figure.S8.all.VSTs.man.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
 (m3/m2/md4 | b2) +plot_layout(widths = c(4, 1)) + plot_annotation(tag_levels = 'A')
 null <- dev.off()
 ```
 
 ![Figure S7- VST across the genome
-versions](./Output/Figures/Supplemental/Figure.S7.all.VSTs.man.png)
+versions](./Output/Figures/Supplemental/Figure.S8.all.VSTs.man.png)
 
 #### LSS
 
@@ -3868,10 +3907,10 @@ md4 <- ggplot(dfm, aes(x= index, y=marker, colour = as.factor(chrom_alt),size=(0
 
 
 
-png(filename="./Output/Figures/Supplemental/Figure.S8.VST.LSS.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
+png(filename="./Output/Figures/Supplemental/Figure.S9.VST.LSS.png", type="cairo",units="px", width=5600, height=3000, res=300, bg="transparent")
 (m3/m2/md4 | b2) +plot_layout(widths = c(4, 1)) + plot_annotation(tag_levels = 'A')
 null <- dev.off()
 ```
 
 ![Figure S8-VST estimates in the
-LSS](./Output/Figures/Supplemental/Figure.S8.VST.LSS.png)
+LSS](./Output/Figures/Supplemental/Figure.S9.VST.LSS.png)
